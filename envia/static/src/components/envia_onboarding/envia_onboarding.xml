@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="envia.OnboardingBanner">
+        <div t-if="state.data" class="o_envia_onboarding_banner d-print-none border-bottom px-3 py-2 bg-view">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <strong class="me-2">Get started with Envia quotes</strong>
+                <div class="d-flex flex-wrap align-items-center gap-3 flex-grow-1">
+                    <div t-foreach="steps" t-as="step" t-key="step.id" class="d-flex align-items-center">
+                        <i class="fa me-2" t-att-class="{
+                            'fa-circle-o text-secondary': step.state == 'not_done',
+                            'fa-check-circle text-success': step.state != 'not_done',
+                        }"/>
+                        <a href="#"
+                           t-att-title="step.description"
+                           t-out="step.title"
+                           t-on-click.prevent="() => this.onboardingLinkClicked(step)"
+                        />
+                    </div>
+                </div>
+                <button type="button" class="btn btn-link btn-sm" t-on-click="closeOnboarding">
+                    Hide tips
+                </button>
+            </div>
+        </div>
+    </t>
+</templates>
