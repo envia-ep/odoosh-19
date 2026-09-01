@@ -1,8 +1,8 @@
 import re
 
-from odoo import _
 from odoo.exceptions import UserError
 
+from .i18n import _
 from ..services.dto import Contact, QuoteRequest, ShipmentItem
 from ..services.envia_client import EnviaClient
 from ..services.envia_geocodes_client import EnviaGeocodesClient

@@ -65,7 +65,7 @@ class TestEnviaOauthClient(TransactionCase):
         self.assertIn("j4CVuDzGDiA2sxu0YYOYndiE4XkonsFb", popup_url)
         self.assertIn("ecommerce=odoo", popup_url)
         self.assertIn("state=fromPlugin", popup_url)
-        self.assertIn("origin=odoo", popup_url)
+        self.assertIn("origin=envia_odoo", popup_url)
         self.assertIn("url=https%3A%2F%2Fmitienda.odoo.com", popup_url)
         self.assertIn("database=mydb", popup_url)
         self.assertIn("email=user%40correo.com", popup_url)

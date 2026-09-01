@@ -14,6 +14,35 @@ class TestSaleOrderEnvia(TransactionCase):
     def setUp(self):
         super().setUp()
         self.env.company.envia_enable_branches = True
+        # Odoo.sh company/warehouse partners often lack street/city/zip/state.
+        mx = self.env.ref("base.mx")
+        state = self.env["res.country.state"].search(
+            [("country_id", "=", mx.id)], limit=1
+        )
+        address_vals = {
+            "country_id": mx.id,
+            "state_id": state.id if state else False,
+            "street": "Av Test 1",
+            "city": "Ciudad de Mexico",
+            "zip": "06600",
+            "phone": "5555555555",
+            "email": "qa@example.com",
+        }
+        partners = self.env.company.partner_id
+        warehouse = self.env["stock.warehouse"].search(
+            [("company_id", "=", self.env.company.id)],
+            limit=1,
+        )
+        if warehouse.partner_id:
+            partners |= warehouse.partner_id
+        for partner in partners:
+            partner.write(
+                {
+                    key: value
+                    for key, value in address_vals.items()
+                    if key in ("country_id", "state_id") or not partner[key]
+                }
+            )
 
     def test_action_envia_reship_creates_linked_outgoing_after_return(self):
         """After OUT done + return with to_refund, Reship creates a new linked OUT."""
@@ -280,7 +309,19 @@ class TestSaleOrderEnvia(TransactionCase):
 
     def test_build_checkout_payload_uses_product_product_id(self):
         partner = self.env.company.partner_id
-        product = self.env["product.product"].search([("sale_ok", "=", True)], limit=1)
+        shipping = self.env.ref("envia.product_envia_shipping", raise_if_not_found=False)
+        product = self.env["product.product"].create(
+            {
+                "name": "Checkout Item QA",
+                "sale_ok": True,
+                "list_price": 10.0,
+            }
+        )
+        self.assertNotEqual(
+            product,
+            shipping,
+            "Merchandise line must not be the Envia shipping product",
+        )
         order = self.env["sale.order"].create(
             {
                 "partner_id": partner.id,
@@ -290,6 +331,7 @@ class TestSaleOrderEnvia(TransactionCase):
             }
         )
         request = PayloadMapper.build_quote_request_from_sale_order(order)
+        self.assertTrue(request.items, "Quote must include merchandise items")
         payload = EnviaOfficialAdapter._build_checkout_payload(request)
         self.assertEqual(payload["items"][0]["productId"], str(product.id))
 
@@ -605,7 +647,14 @@ class TestSaleOrderEnvia(TransactionCase):
 
     def test_quote_wizard_opens_in_modal_from_sale_order(self):
         partner = self.env.company.partner_id
-        product = self.env["product.product"].search([("sale_ok", "=", True)], limit=1)
+        product = self.env["product.product"].create(
+            {
+                "name": "Envia Quote Modal Service",
+                "type": "service",
+                "sale_ok": True,
+                "list_price": 1.0,
+            }
+        )
         order = self.env["sale.order"].create(
             {
                 "partner_id": partner.id,
@@ -614,7 +663,6 @@ class TestSaleOrderEnvia(TransactionCase):
                 "order_line": [(0, 0, {"product_id": product.id, "product_uom_qty": 1.0})],
             }
         )
-        order.action_confirm()
 
         action = order.action_open_envia_quote_wizard()
         self.assertEqual(action["target"], "new")
@@ -1174,6 +1222,8 @@ class TestSaleOrderEnvia(TransactionCase):
                 "destination_partner_id": self.env.company.partner_id.id,
                 "destination_country_id": mexico.id,
                 "destination_postal_code": "44100",
+                "destination_state_id": state.id,
+                "destination_city": "Guadalajara",
             }
         )
         branch = self.env["envia.quote.wizard.branch"].create(
@@ -1228,6 +1278,32 @@ class TestSaleOrderEnvia(TransactionCase):
 
     def test_is_ready_for_auto_quote_only_for_ship_to_ship(self):
         mexico = self.env.ref("base.mx")
+        nl = self.env.ref("base.state_mx_nl")
+        df = self.env.ref("base.state_mx_df")
+        origin = self.env["res.partner"].create(
+            {
+                "name": "Origin Ship Contact",
+                "street": "Street 1",
+                "city": "Guadalupe",
+                "zip": "67192",
+                "country_id": mexico.id,
+                "state_id": nl.id,
+                "phone": "8180000001",
+                "email": "origin@example.com",
+            }
+        )
+        destination = self.env["res.partner"].create(
+            {
+                "name": "Destination Ship Contact",
+                "street": "Street 2",
+                "city": "Ciudad de Mexico",
+                "zip": "03100",
+                "country_id": mexico.id,
+                "state_id": df.id,
+                "phone": "5550000002",
+                "email": "dest@example.com",
+            }
+        )
         wizard = self.env["envia.quote.wizard"].with_context(
             envia_skip_branch_autoload=True
         ).create(
@@ -1236,10 +1312,10 @@ class TestSaleOrderEnvia(TransactionCase):
                 "destination_location_type": "branch",
                 "origin_country_id": mexico.id,
                 "origin_postal_code": "67192",
-                "origin_state_id": self.env.ref("base.state_mx_nl").id,
+                "origin_state_id": nl.id,
                 "destination_country_id": mexico.id,
                 "destination_postal_code": "03100",
-                "destination_state_id": self.env.ref("base.state_mx_df").id,
+                "destination_state_id": df.id,
             }
         )
         self.assertFalse(wizard._is_ready_for_auto_quote())
@@ -1247,20 +1323,25 @@ class TestSaleOrderEnvia(TransactionCase):
             {
                 "origin_location_type": "address",
                 "destination_location_type": "address",
+                "origin_partner_id": origin.id,
+                "destination_partner_id": destination.id,
                 "origin_street": "Street 1",
                 "origin_city": "Guadalupe",
                 "origin_postal_code": "67192",
-                "origin_state_id": self.env.ref("base.state_mx_nl").id,
+                "origin_country_id": mexico.id,
+                "origin_state_id": nl.id,
                 "destination_street": "Street 2",
                 "destination_city": "Ciudad de Mexico",
                 "destination_postal_code": "03100",
-                "destination_state_id": self.env.ref("base.state_mx_df").id,
-                "origin_partner_id": self.env.company.partner_id.id,
-                "destination_partner_id": self.env.company.partner_id.id,
+                "destination_country_id": mexico.id,
+                "destination_state_id": df.id,
                 "weight": 1.0,
             }
         )
-        self.assertTrue(wizard.can_get_rates)
+        self.assertTrue(
+            wizard.can_get_rates,
+            wizard.validation_summary or wizard.blocking_message,
+        )
         self.assertTrue(wizard._is_ready_for_auto_quote())
 
     def test_postal_ready_for_branch_search(self):
@@ -1454,6 +1535,9 @@ class TestSaleOrderEnvia(TransactionCase):
 
     def test_choose_service_survives_unchanged_wizard_write(self):
         mexico = self.env.ref("base.mx")
+        state = self.env["res.country.state"].search(
+            [("country_id", "=", mexico.id)], limit=1
+        )
         wizard = self.env["envia.quote.wizard"].with_context(
             envia_skip_branch_autoload=True
         ).create(
@@ -1461,9 +1545,11 @@ class TestSaleOrderEnvia(TransactionCase):
                 "origin_postal_code": "67192",
                 "origin_city": "Guadalupe",
                 "origin_country_id": mexico.id,
+                "origin_state_id": state.id,
                 "destination_postal_code": "03100",
                 "destination_city": "Ciudad de Mexico",
                 "destination_country_id": mexico.id,
+                "destination_state_id": state.id,
             }
         )
         service = self.env["envia.quote.wizard.service"].create(

@@ -9,9 +9,9 @@ from urllib.parse import urlencode
 
 import requests
 
-from odoo import _
 from odoo.exceptions import UserError
 
+from .i18n import _
 from .envia_plugin_setup import get_envia_module_version, normalize_envia_plugin_version
 
 _logger = logging.getLogger(__name__)

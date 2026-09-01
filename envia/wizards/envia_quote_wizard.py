@@ -1940,7 +1940,13 @@ class EnviaQuoteWizard(models.TransientModel):
             setattr(self, f"{prefix}_postal_code", zipcode)
         if not force and len(zipcode) < 4:
             return
-        entries = EnviaGeocodesClient().lookup_zipcode(country.code, zipcode)
+        try:
+            entries = EnviaGeocodesClient().lookup_zipcode(country.code, zipcode)
+        except UserError:
+            # Optional fill (tests block HTTP; offline Geocodes). force=True still raises.
+            if force:
+                raise
+            return
         if not entries:
             if force:
                 raise UserError(_("No Envia geocode match for postal code %s.") % zipcode)
@@ -1961,7 +1967,11 @@ class EnviaQuoteWizard(models.TransientModel):
         zipcode = self._normalize_postal_code(country.code, zipcode.strip())
         if len(zipcode) < 4:
             return {}
-        entries = EnviaGeocodesClient().lookup_zipcode(country.code, zipcode)
+        try:
+            entries = EnviaGeocodesClient().lookup_zipcode(country.code, zipcode)
+        except UserError:
+            # Address sync must not fail wizard create when Geocodes is unreachable.
+            return {}
         if not entries:
             return {}
         entry = entries[0]

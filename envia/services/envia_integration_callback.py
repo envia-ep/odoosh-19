@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlencode
 
-from odoo import _
+from .i18n import _
 
 from .envia_plugin_setup import get_pending_setup_company_id, lookup_integration_database, resolve_integration_api_key_user
 
