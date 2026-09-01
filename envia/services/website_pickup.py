@@ -6,7 +6,8 @@ from typing import Any
 
 from odoo import fields
 from odoo.exceptions import UserError
-from odoo.tools.translate import _
+
+from .i18n import _
 
 from .dto import QuoteRequest, QuoteResponse, QuoteService
 from .envia_client import EnviaClient

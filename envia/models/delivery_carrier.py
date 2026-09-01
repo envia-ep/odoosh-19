@@ -125,7 +125,7 @@ class DeliveryCarrier(models.Model):
                 if "already fulfilled" not in message:
                     raise
                 # Last fulfillment still linked — unlink again and retry once.
-                _logger.warning(
+                _logger.info(
                     "Envia label/create already fulfilled for %s; "
                     "retrying unlink + label/create",
                     picking.name,

@@ -4,8 +4,9 @@ from typing import Any
 import logging
 import re
 
-from odoo import _
 from odoo.exceptions import RedirectWarning, UserError
+
+from .i18n import _
 
 from .dto import (
     AdditionalService,
@@ -93,7 +94,7 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
             raise
         checkout_error = EnviaOfficialAdapter._checkout_error_message(body)
         if checkout_error:
-            _logger.warning("Envia checkout meta error: %s", checkout_error)
+            _logger.info("Envia checkout meta error: %s", checkout_error)
             message = _(
                 "To get shipping quotes, enable Checkout in Envia.com "
                 "and select the carriers you want to quote."
@@ -161,7 +162,7 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
                 payload,
             )
         except (UserError, EnviaApiError) as error:
-            _logger.warning("Envia package dimensions preview failed: %s", error)
+            _logger.info("Envia package dimensions preview failed: %s", error)
             return "", _(
                 "Could not load Envia package dimensions preview: %s"
             ) % error
@@ -614,7 +615,7 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
         if not isinstance(data_list, list) or not data_list:
             raw = body.get("message") or body.get("error") or body
             message = EnviaClient.humanize_api_message(raw)
-            _logger.error("Envia ship/generate empty data: %s", body)
+            _logger.info("Envia ship/generate empty data: %s", body)
             if message != str(raw or "").strip():
                 raise UserError(message)
             raise UserError(_("Envia did not generate a label: %s") % message)
@@ -631,7 +632,7 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
         pricing_total = float(total_price) if total_price not in (None, "") else None
 
         if not shipment_id and not tracking_number:
-            _logger.error("Envia ship/generate incomplete response: %s", body)
+            _logger.info("Envia ship/generate incomplete response: %s", body)
             raise UserError(
                 _("Envia returned an incomplete label response. Check Odoo logs for ship/generate.")
             )

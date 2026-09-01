@@ -20,7 +20,15 @@ class TestEnviaQuoteOnboarding(TransactionCase):
         self.assertEqual(action.get("res_model"), "sale.order")
 
         partner = self.env.company.partner_id
-        product = self.env["product.product"].search([("sale_ok", "=", True)], limit=1)
+        # Service product: confirm without stock replenishment / transit rules.
+        product = self.env["product.product"].create(
+            {
+                "name": "Envia Onboarding Service",
+                "type": "service",
+                "sale_ok": True,
+                "list_price": 1.0,
+            }
+        )
         order = self.env["sale.order"].create(
             {
                 "partner_id": partner.id,

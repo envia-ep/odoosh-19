@@ -283,25 +283,27 @@ class TestEnviaClient(TransactionCase):
         self.assertNotIn("Feature not enabled", message)
 
     def test_label_create_feature_not_enabled_redirects_to_shipping_rules(self):
-        from unittest.mock import MagicMock
+        from unittest.mock import MagicMock, patch
 
         from odoo.addons.envia.services.envia_official_adapter import EnviaOfficialAdapter
         from odoo.exceptions import RedirectWarning
 
-        client = MagicMock()
-        client.token = "token"
-        client._post.return_value = {
-            "status": False,
-            "message": "Feature not enabled for this shop.",
-        }
         action = self.env.ref("envia.action_envia_open_shipping_rules_settings")
         adapter = EnviaOfficialAdapter(
-            client,
+            MagicMock(token="token"),
             shop_id="125410",
             label_settings_action_id=action.id,
         )
-        with self.assertRaises(RedirectWarning) as error:
-            adapter.create_label_for_odoo_order(42, service_id=1)
+        # create_label_for_odoo_order builds a fresh EnviaClient; mock its _post.
+        with patch(
+            "odoo.addons.envia.services.envia_official_adapter.EnviaClient._post",
+            return_value={
+                "status": False,
+                "message": "Feature not enabled for this shop.",
+            },
+        ):
+            with self.assertRaises(RedirectWarning) as error:
+                adapter.create_label_for_odoo_order(42, service_id=1)
         self.assertEqual(error.exception.args[1], action.id)
         self.assertIn("Label generation from the store", str(error.exception.args[0]))
 

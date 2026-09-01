@@ -551,10 +551,10 @@ class TestEnviaBillingInfoWizard(TransactionCase):
         partner = warehouse.partner_id
         partner.write(
             {
-                "street": partner.street or "Aurora Boreal 301",
-                "city": partner.city or "Guadalupe",
-                "zip": partner.zip or "67192",
-                "country_id": partner.country_id.id or self.env.ref("base.mx").id,
+                "street": "Aurora Boreal 301",
+                "city": "Guadalupe",
+                "zip": "67192",
+                "country_id": self.env.ref("base.mx").id,
             }
         )
         options = self.env["envia.billing.info.wizard"].get_origin_warehouse_options()

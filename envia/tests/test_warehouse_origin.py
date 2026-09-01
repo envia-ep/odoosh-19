@@ -221,12 +221,17 @@ class TestEnviaWarehouseOrigin(TransactionCase):
         )
         self.assertTrue(warehouse)
         partner = warehouse.partner_id
+        mx = self.env.ref("base.mx")
+        state = self.env["res.country.state"].search(
+            [("country_id", "=", mx.id)], limit=1
+        )
         partner.write(
             {
                 "street": partner.street or "Calle 1",
                 "city": partner.city or "Monterrey",
                 "zip": partner.zip or "64000",
-                "country_id": partner.country_id.id or self.env.ref("base.mx").id,
+                "country_id": mx.id,
+                "state_id": state.id if state else False,
                 "phone": partner.phone or "8181234567",
                 "email": partner.email or "wh@example.com",
             }

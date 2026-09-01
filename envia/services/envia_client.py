@@ -4,8 +4,9 @@ from typing import Any
 
 import requests
 
-from odoo import _
 from odoo.exceptions import UserError
+
+from .i18n import _
 
 _logger = logging.getLogger(__name__)
 

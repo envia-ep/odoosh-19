@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from odoo import _, fields
+from odoo import fields
 from odoo.exceptions import UserError
+
+from .i18n import _
 
 DEFAULT_ENVIA_API_KEY_NAME = "Envia.com"
 LEGACY_ENVIA_API_KEY_NAMES = ("conectar con envia.com",)

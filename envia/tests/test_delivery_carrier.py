@@ -30,7 +30,35 @@ class TestEnviaDeliveryCarrier(TransactionCase):
                 }
             )
         self.carrier = self.env.ref("envia.delivery_carrier_envia")
+        # Odoo.sh company/warehouse partners often lack street/city/zip/state;
+        # Get rate validates wizard address fields and may hit Geocodes if state is empty.
+        mx, state = self._mx_state()
+        address_vals = {
+            "country_id": mx.id,
+            "state_id": state.id if state else False,
+            "street": "Av Test 1",
+            "city": "Ciudad de Mexico",
+            "zip": "06600",
+            "phone": "5555555555",
+            "email": "qa@example.com",
+        }
         self.partner = self.env.company.partner_id
+        partners = self.partner
+        warehouse = self.env["stock.warehouse"].search(
+            [("company_id", "=", self.env.company.id)],
+            limit=1,
+        )
+        if warehouse.partner_id:
+            partners |= warehouse.partner_id
+        for partner in partners:
+            partner.write(
+                {
+                    key: value
+                    for key, value in address_vals.items()
+                    if key in ("country_id", "state_id")
+                    or not partner[key]
+                }
+            )
         self.order = self.env["sale.order"].create(
             {
                 "partner_id": self.partner.id,
@@ -1096,6 +1124,9 @@ class TestEnviaDeliveryCarrier(TransactionCase):
 
     def test_update_shipping_opens_envia_when_order_carrier_missing_pickup(self):
         mx, state = self._mx_state()
+        # Core choose.delivery.carrier seeds total_weight from product weight;
+        # keep it aligned with the restored quote weight.
+        self.product.weight = 2.5
         quote = self.env["envia.quote"].create(
             {
                 "origin_postal_code": "06600",
@@ -1631,6 +1662,7 @@ class TestEnviaDeliveryCarrier(TransactionCase):
             }
         )
         quote.selected_service_id = service
+        self.env.company.envia_enable_labels = False
         with self.assertRaises(UserError):
             quote._validate_label_generation()
         self.env.company.envia_enable_labels = True
@@ -2020,6 +2052,7 @@ class TestEnviaDeliveryCarrier(TransactionCase):
             {
                 "quote_id": quote.id,
                 "service_id": "fedex:1",
+                "envia_service_id": 922,
                 "carrier": "fedex",
                 "carrier_name": "FedEx",
                 "service_name": "Economy",
@@ -2155,8 +2188,8 @@ class TestEnviaDeliveryCarrier(TransactionCase):
         self.assertEqual(quote.state, "used")
         self.assertFalse(picking._get_active_envia_quote())
 
-    def test_envia_replace_label_continues_without_envia_order_id(self):
-        """Old shipments without orderId: local unlink only, no blocking API error."""
+    def test_envia_replace_label_blocks_without_envia_order_id(self):
+        """Without orderId+shipmentId Odoo cannot DELETE on Envia → block Replace."""
         self.env.company.envia_shop_id = "34165"
         self.env.company.envia_api_token = "shipping-token"
         picking = self._make_out_picking(carrier_tracking_ref="1ZOLD")
@@ -2174,11 +2207,12 @@ class TestEnviaDeliveryCarrier(TransactionCase):
         with patch(
             "odoo.addons.envia.services.envia_client.EnviaClient._delete",
         ) as mock_delete:
-            action = picking.action_envia_replace_label()
+            with self.assertRaises(UserError) as error:
+                picking.action_envia_replace_label()
         mock_delete.assert_not_called()
-        self.assertEqual(shipment.state, "replaced")
-        self.assertFalse(picking.carrier_tracking_ref)
-        self.assertEqual(action["res_model"], "envia.quote.wizard")
+        self.assertIn("orderId/shipmentId", str(error.exception))
+        self.assertEqual(shipment.state, "created")
+        self.assertEqual(picking.carrier_tracking_ref, "1ZOLD")
 
     def test_get_active_envia_quote_uses_latest_rate_after_requote(self):
         """Replace + re-quote must not keep the first selected service."""
@@ -2223,7 +2257,7 @@ class TestEnviaDeliveryCarrier(TransactionCase):
         )
         captured = {}
 
-        def _create_label(order_id):
+        def _create_label(order_id, service_id=None):
             captured["envia_service_id"] = self.order.envia_service_id
             captured["service_id"] = self.order.envia_module["service_id"]
             return CreateShipmentResponse(
@@ -2480,7 +2514,10 @@ class TestEnviaDeliveryCarrier(TransactionCase):
         )
         quote.selected_service_id = service
         self.assertEqual(self.order.envia_status, "quoted")
+        # Avoid action_confirm (Inter-warehouse transit). sale_id on picking
+        # links into order.picking_ids via Core inverse.
         picking = self._make_out_picking(carrier_tracking_ref="1ZWEBHOOK")
+        self.assertTrue(picking in self.order.picking_ids)
         self.assertFalse(picking.envia_shipment_ids)
         self.assertEqual(picking.envia_status, "shipped")
         self.assertEqual(self.order.envia_status, "shipped")
@@ -2545,7 +2582,8 @@ class TestEnviaDeliveryCarrier(TransactionCase):
         self.assertEqual(picking.envia_label_url, "https://s3.example.com/guia.pdf")
         self.assertTrue(picking._envia_has_label_url_message())
         body = picking.message_ids[:1].body or ""
-        self.assertIn("<br/>", body)
+        # Odoo 19 chatter HTML may normalize <br/> to <br>.
+        self.assertIn("<br", body)
         self.assertIn('<a href="https://s3.example.com/guia.pdf"', body)
         self.assertIn("Open shipping label (PDF)", body)
         self.assertIn("https://envia.com/rastreo?label=1ZCORE", body)

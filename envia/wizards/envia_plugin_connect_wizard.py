@@ -569,11 +569,8 @@ class EnviaPluginConnectWizard(models.TransientModel):
 
     def _get_stored_integration_credentials(self) -> dict:
         self.ensure_one()
-        api_key = (self.company_id.envia_integration_api_key or "").strip()
-        if not api_key:
-            raise UserError(
-                _("Generate the Odoo API key for Envia.com in Settings before refreshing the token.")
-            )
+        # Refresh/reconnect must mint or replace a revoked Odoo API key.
+        api_key = self.company_id._envia_ensure_valid_integration_api_key()
         base_url = normalize_integration_store_url(
             self.env["ir.config_parameter"].sudo().get_param("web.base.url", "")
         )

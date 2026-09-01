@@ -162,6 +162,17 @@ class SaleOrder(models.Model):
             new_outs.write(vals)
         return self._get_action_view_picking(new_outs)
 
+    @api.depends(
+        "envia_shipment_ids",
+        "envia_shipment_ids.state",
+        "envia_quote_ids",
+        "envia_quote_ids.state",
+        "envia_quote_ids.selected_service_id",
+        "picking_ids",
+        "picking_ids.carrier_id",
+        "picking_ids.carrier_id.delivery_type",
+        "picking_ids.carrier_tracking_ref",
+    )
     def _compute_envia_status(self):
         for order in self:
             shipment = order.envia_shipment_ids.filtered(lambda item: item._is_active())[:1]
