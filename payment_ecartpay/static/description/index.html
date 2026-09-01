@@ -1,0 +1,243 @@
+<!-- Rendered by the Odoo Apps Store. Bootstrap 4 is available out of the box. -->
+<!-- Ecart Pay brand palette:
+     primary        #1f6bff
+     primary-dark   #15669c
+     primary-darker #08436a
+     accent green   #0cb884
+     accent orange  #ff6b12
+     bg soft        #f5f8ff
+     text muted     #4d6593 -->
+
+<section style="background: linear-gradient(135deg, #f5f8ff 0%, #ffffff 100%); padding: 72px 0; text-align: center;">
+    <div class="oe_container">
+        <img src="logo.png" alt="Ecart Pay"
+             style="max-width: 160px; height: auto; margin-bottom: 24px;"/>
+        <h1 style="font-size: 48px; font-weight: 300; color: #08436a; margin-bottom: 12px; letter-spacing: -0.5px;">
+            Ecart Pay for Odoo
+        </h1>
+        <h3 style="color: #1f6bff; font-weight: 500; margin-bottom: 24px; font-size: 22px;">
+            Charge with Latin America's leading payment gateway.
+        </h3>
+        <p style="max-width: 780px; margin: 0 auto; font-size: 17px; line-height: 1.6; color: #3c4e71;">
+            Integrate the <strong>Ecart Pay hosted checkout</strong> with your Odoo website,
+            eCommerce and Point of Sale online payments. Order creation, refunds and status
+            updates are centralized on the Ecart Pay Odoo facade, keeping the module decoupled
+            so future flows (transparent checkout, tokenization, recurring, wallets) can be
+            added without touching your Odoo instance.
+        </p>
+        <div style="margin-top: 32px;">
+            <a href="https://ecartpay.com/" target="_blank" rel="noopener"
+               style="display: inline-block; background: #1f6bff; color: #ffffff; padding: 14px 36px; border-radius: 6px; font-weight: 500; text-decoration: none; font-size: 16px; box-shadow: 0 4px 12px rgba(31, 107, 255, 0.25);">
+                Explore Ecart Pay
+            </a>
+        </div>
+    </div>
+</section>
+
+<section style="background: #f5f8ff; padding: 72px 0;">
+    <div class="oe_container">
+        <div class="oe_row oe_spaced" style="text-align: center; margin-bottom: 40px;">
+            <h2 style="color: #08436a; font-weight: 300;">Key features</h2>
+            <p style="color: #4d6593; max-width: 640px; margin: 8px auto 0; font-size: 16px;">
+                Everything you need to accept payments and reconcile orders from inside Odoo.
+            </p>
+        </div>
+        <div class="row" style="max-width: 1080px; margin: 0 auto;">
+            <div class="col-md-4" style="padding: 16px;">
+                <div style="background: #ffffff; padding: 28px; border-radius: 12px; height: 100%; box-shadow: 0 4px 14px rgba(31, 107, 255, 0.07); border-top: 3px solid #1f6bff;">
+                    <h4 style="color: #08436a; font-weight: 600; font-size: 18px; margin-bottom: 12px;">
+                        Hosted redirect checkout
+                    </h4>
+                    <p style="color: #4d6593; line-height: 1.6; margin: 0;">
+                        Redirect your customer to the Ecart Pay branded page. Card, transfer,
+                        cash and wallet methods are supported out of the box.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4" style="padding: 16px;">
+                <div style="background: #ffffff; padding: 28px; border-radius: 12px; height: 100%; box-shadow: 0 4px 14px rgba(31, 107, 255, 0.07); border-top: 3px solid #1f6bff;">
+                    <h4 style="color: #08436a; font-weight: 600; font-size: 18px; margin-bottom: 12px;">
+                        Signed webhooks
+                    </h4>
+                    <p style="color: #4d6593; line-height: 1.6; margin: 0;">
+                        Every order status change is delivered as a signed HMAC-SHA256 webhook.
+                        The webhook secret is provisioned automatically when you save the
+                        provider.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4" style="padding: 16px;">
+                <div style="background: #ffffff; padding: 28px; border-radius: 12px; height: 100%; box-shadow: 0 4px 14px rgba(31, 107, 255, 0.07); border-top: 3px solid #1f6bff;">
+                    <h4 style="color: #08436a; font-weight: 600; font-size: 18px; margin-bottom: 12px;">
+                        Detailed line items
+                    </h4>
+                    <p style="color: #4d6593; line-height: 1.6; margin: 0;">
+                        Products, shipping and discounts are forwarded as separate lines so
+                        your Ecart Pay orders match exactly the Odoo sale order or POS ticket.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4" style="padding: 16px;">
+                <div style="background: #ffffff; padding: 28px; border-radius: 12px; height: 100%; box-shadow: 0 4px 14px rgba(31, 107, 255, 0.07); border-top: 3px solid #0cb884;">
+                    <h4 style="color: #08436a; font-weight: 600; font-size: 18px; margin-bottom: 12px;">
+                        Automatic setup
+                    </h4>
+                    <p style="color: #4d6593; line-height: 1.6; margin: 0;">
+                        The webhook secret and the accounting payment method line are created
+                        for you when the provider is saved. Zero manual work on the Ecart Pay
+                        side.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4" style="padding: 16px;">
+                <div style="background: #ffffff; padding: 28px; border-radius: 12px; height: 100%; box-shadow: 0 4px 14px rgba(31, 107, 255, 0.07); border-top: 3px solid #0cb884;">
+                    <h4 style="color: #08436a; font-weight: 600; font-size: 18px; margin-bottom: 12px;">
+                        Test &amp; production
+                    </h4>
+                    <p style="color: #4d6593; line-height: 1.6; margin: 0;">
+                        Switch between test and production with one click. Cached tokens are
+                        invalidated automatically whenever you rotate keys or change the mode.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4" style="padding: 16px;">
+                <div style="background: #ffffff; padding: 28px; border-radius: 12px; height: 100%; box-shadow: 0 4px 14px rgba(31, 107, 255, 0.07); border-top: 3px solid #ff6b12;">
+                    <h4 style="color: #08436a; font-weight: 600; font-size: 18px; margin-bottom: 12px;">
+                        Ready for the future
+                    </h4>
+                    <p style="color: #4d6593; line-height: 1.6; margin: 0;">
+                        The Ecart Pay Odoo facade already exposes the surface for transparent
+                        checkout, payment intents, tokenization, recurring and wallets
+                        (Apple Pay, Google Pay). Upgrade without changing your module.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section style="padding: 72px 0; background: #ffffff;">
+    <div class="oe_container">
+        <div class="oe_row oe_spaced" style="text-align: center; margin-bottom: 40px;">
+            <h2 style="color: #08436a; font-weight: 300;">Screenshots</h2>
+            <p style="color: #4d6593; max-width: 640px; margin: 8px auto 0; font-size: 16px;">
+                Take a tour of the checkout experience and the Odoo configuration screens.
+            </p>
+        </div>
+
+        <div class="oe_row oe_spaced" style="text-align: center; margin-bottom: 56px;">
+            <img src="screenshots/01-provider-configuration.png"
+                 alt="Ecart Pay dashboard showing the API credentials"
+                 style="max-width: 100%; border: 1px solid #d1e6f8; border-radius: 8px; box-shadow: 0 8px 24px rgba(31, 107, 255, 0.10);"/>
+            <p style="margin-top: 16px; color: #4d6593; max-width: 720px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+                <strong style="color: #08436a;">1. Grab your Ecart Pay API keys.</strong>
+                In your Ecart Pay account go to <strong>Dev Tools &rarr; Credentials</strong>.
+                You'll find the <strong>test</strong> and <strong>production</strong> keys
+                ready to copy and paste into the provider form in Odoo.
+            </p>
+        </div>
+
+        <div class="oe_row oe_spaced" style="text-align: center; margin-bottom: 56px;">
+            <img src="screenshots/02-provider-configuration-odoo.png"
+                 alt="Ecart Pay payment provider configuration form in Odoo"
+                 style="max-width: 100%; border: 1px solid #d1e6f8; border-radius: 8px; box-shadow: 0 8px 24px rgba(31, 107, 255, 0.10);"/>
+            <p style="margin-top: 16px; color: #4d6593; max-width: 720px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+                <strong style="color: #08436a;">2. Configure the provider in Odoo.</strong>
+                Paste your API keys into the Ecart Pay provider form and switch between test
+                and production modes with one click. The webhook secret is filled in
+                automatically when you save.
+            </p>
+        </div>
+
+        <div class="oe_row oe_spaced" style="text-align: center; margin-bottom: 56px;">
+            <img src="screenshots/03-checkout-payment-methods.png"
+                 alt="Ecart Pay shown on the Odoo eCommerce checkout"
+                 style="max-width: 100%; border: 1px solid #d1e6f8; border-radius: 8px; box-shadow: 0 8px 24px rgba(31, 107, 255, 0.10);"/>
+            <p style="margin-top: 16px; color: #4d6593; max-width: 720px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+                <strong style="color: #08436a;">3. Available on the checkout.</strong>
+                Customers pick Ecart Pay directly on the Odoo eCommerce, website and portal
+                checkouts.
+            </p>
+        </div>
+
+        <div class="oe_row oe_spaced" style="text-align: center; margin-bottom: 56px;">
+            <img src="screenshots/04-hosted-checkout.png"
+                 alt="Ecart Pay hosted checkout page"
+                 style="max-width: 100%; border: 1px solid #d1e6f8; border-radius: 8px; box-shadow: 0 8px 24px rgba(31, 107, 255, 0.10);"/>
+            <p style="margin-top: 16px; color: #4d6593; max-width: 720px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+                <strong style="color: #08436a;">4. Ecart Pay hosted checkout.</strong>
+                The customer completes the payment on the Ecart Pay branded page with the
+                method of their choice.
+            </p>
+        </div>
+
+        <div class="oe_row oe_spaced" style="text-align: center; margin-bottom: 56px;">
+            <img src="screenshots/05-transaction-confirmation.png"
+                 alt="Successful payment confirmation on Odoo"
+                 style="max-width: 100%; border: 1px solid #d1e6f8; border-radius: 8px; box-shadow: 0 8px 24px rgba(31, 107, 255, 0.10);"/>
+            <p style="margin-top: 16px; color: #4d6593; max-width: 720px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+                <strong style="color: #08436a;">5. Confirmed payment.</strong>
+                The customer is redirected back to Odoo and the transaction is marked as paid
+                automatically.
+            </p>
+        </div>
+
+        <div class="oe_row oe_spaced" style="text-align: center; margin-bottom: 24px;">
+            <img src="screenshots/06-transaction-detail.png"
+                 alt="Payment transaction detail in Odoo"
+                 style="max-width: 100%; border: 1px solid #d1e6f8; border-radius: 8px; box-shadow: 0 8px 24px rgba(31, 107, 255, 0.10);"/>
+            <p style="margin-top: 16px; color: #4d6593; max-width: 720px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+                <strong style="color: #08436a;">6. Transaction detail.</strong>
+                Every attempt keeps the reference, the Ecart Pay order id and the status for
+                audit and reconciliation.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section style="background: linear-gradient(135deg, #08436a 0%, #1f6bff 100%); color: #ffffff; padding: 72px 0;">
+    <div class="oe_container">
+        <div class="oe_row oe_spaced" style="text-align: center; margin-bottom: 40px;">
+            <h2 style="color: #ffffff; font-weight: 300;">How it works</h2>
+        </div>
+        <div class="row" style="max-width: 960px; margin: 0 auto;">
+            <div class="col-md-6" style="padding: 16px;">
+                <ol style="font-size: 16px; line-height: 1.8; color: #d1e6f8; padding-left: 20px;">
+                    <li>The customer places an order on Odoo and picks Ecart Pay.</li>
+                    <li>Odoo creates the order through the Ecart Pay Odoo facade.</li>
+                    <li>The customer is redirected to Ecart Pay to complete the payment.</li>
+                    <li>Ecart Pay sends a signed webhook back to Odoo with the outcome.</li>
+                    <li>Odoo confirms or cancels the sales order automatically.</li>
+                </ol>
+            </div>
+            <div class="col-md-6" style="padding: 16px;">
+                <h5 style="color: #ffffff; font-weight: 600; margin-bottom: 12px;">Requirements</h5>
+                <ul style="line-height: 1.8; color: #d1e6f8; padding-left: 20px;">
+                    <li>Odoo 19 Community or Enterprise.</li>
+                    <li>An Ecart Pay account with API keys (test and production).</li>
+                    <li>Odoo instance reachable from the internet for webhooks.</li>
+                </ul>
+                <h5 style="color: #ffffff; font-weight: 600; margin-top: 20px; margin-bottom: 12px;">
+                    Related modules
+                </h5>
+                <ul style="line-height: 1.8; color: #d1e6f8; padding-left: 20px;">
+                    <li><strong style="color: #ffffff;">POS Ecart Pay</strong> &mdash; charge
+                        POS orders on an Ecart Pay physical terminal.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section style="padding: 64px 0; text-align: center; background: #ffffff;">
+    <div class="oe_container">
+        <h3 style="color: #08436a; font-weight: 300;">Need help?</h3>
+        <p style="color: #4d6593; font-size: 17px; margin-top: 12px;">
+            Visit <a href="https://ecartpay.com/" target="_blank" rel="noopener"
+                     style="color: #1f6bff; font-weight: 500;">ecartpay.com</a>
+            or reach out to
+            <a href="mailto:support@ecartpay.com"
+               style="color: #1f6bff; font-weight: 500;">support@ecartpay.com</a>.
+        </p>
+    </div>
+</section>
