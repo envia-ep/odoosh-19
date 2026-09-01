@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="choose_delivery_carrier_view_form_envia" model="ir.ui.view">
+        <field name="name">choose.delivery.carrier.form.envia</field>
+        <field name="model">choose.delivery.carrier</field>
+        <field name="inherit_id" ref="delivery.choose_delivery_carrier_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="attributes">
+                <attribute name="js_class">envia_choose_delivery_carrier_form</attribute>
+            </xpath>
+            <xpath expr="//div[hasclass('alert-info')][@role='alert']" position="before">
+                <field name="envia_wizard_id" invisible="1"/>
+                <field name="envia_is_sandbox" invisible="1"/>
+                <field name="envia_can_get_rates" invisible="1"/>
+                <field name="envia_show_service_rates" invisible="1"/>
+                <field name="envia_selected_service_label" invisible="1"/>
+                <field name="envia_has_selected_rate" invisible="1"/>
+                <field name="envia_enable_branches" invisible="1"/>
+                <field name="envia_allowed_origin_warehouse_ids" invisible="1"/>
+                <field name="envia_origin_readonly" invisible="1"/>
+                <field name="envia_destination_partner_readonly" invisible="1"/>
+                <field name="envia_origin_partner_id" invisible="1"/>
+                <field name="envia_allowed_destination_partner_ids" invisible="1"/>
+                <field name="envia_show_origin_branch_picker" invisible="1"/>
+                <field name="envia_show_destination_branch_picker" invisible="1"/>
+                <field name="envia_origin_branch_count" invisible="1"/>
+                <field name="envia_destination_branch_count" invisible="1"/>
+                <field name="envia_origin_branch_load_error" invisible="1"/>
+                <field name="envia_destination_branch_load_error" invisible="1"/>
+                <field name="envia_origin_selected_branch_label" invisible="1"/>
+                <field name="envia_destination_selected_branch_label" invisible="1"/>
+                <field name="envia_origin_branch_line_ids" invisible="1"/>
+                <field name="envia_destination_branch_line_ids" invisible="1"/>
+
+                <div class="o_envia_quote_wizard o_envia_choose_delivery_carrier"
+                     invisible="delivery_type != 'envia'">
+                <div class="alert alert-success o_envia_selected_rate_banner mb-3"
+                     role="status"
+                     invisible="not envia_selected_service_label">
+                    <i class="fa fa-check-circle me-1" title="Selected"/>
+                    <strong><span>Selected rate:</span></strong>
+                    <field name="envia_selected_service_label" readonly="1" nolabel="1" class="d-inline"/>
+                </div>
+                <div class="alert alert-info mb-3" role="status"
+                     invisible="not envia_is_sandbox">
+                    <span>Sandbox works best with domestic MX routes.</span>
+                    <button name="action_envia_fill_sandbox_test_route" type="object"
+                            string="Use test route" class="btn btn-link btn-sm p-0"/>
+                </div>
+                <div class="alert alert-warning mb-3" role="status"
+                     invisible="not envia_weight_warning">
+                    <field name="envia_weight_warning" readonly="1" nolabel="1"/>
+                </div>
+                <div class="alert alert-warning mb-3" role="status"
+                     invisible="not envia_origin_sync_warning">
+                    <field name="envia_origin_sync_warning" readonly="1" nolabel="1"/>
+                </div>
+                    <div class="alert alert-info mb-3" role="status"
+                     invisible="not envia_package_preview">
+                    <div class="fw-bold mb-1">Envia package for quote</div>
+                    <field name="envia_package_preview" readonly="1" nolabel="1"
+                           class="o_envia_package_preview"/>
+                    <div class="text-muted small mt-1">
+                        Shipping rates are calculated with this Envia package weight.
+                    </div>
+                </div>
+                <div class="alert alert-warning mb-3" role="status"
+                     invisible="not envia_package_sync_hint">
+                    <field name="envia_package_sync_hint" readonly="1" nolabel="1"/>
+                </div>
+
+                <group>
+                    <group string="Origin" class="o_envia_side_panel">
+                        <field name="envia_origin_location_type" widget="radio"
+                               options="{'horizontal': true}"
+                               invisible="not envia_enable_branches"/>
+                        <div class="o_envia_side_body" colspan="2">
+                            <field name="envia_origin_warehouse_id" string="Warehouse"
+                                   domain="[('id', 'in', envia_allowed_origin_warehouse_ids)]"
+                                   options="{'no_create': True, 'no_open': True}"
+                                   readonly="envia_origin_readonly"/>
+                            <div class="text-muted small mt-1"
+                                 invisible="not envia_origin_linked_contact_display">
+                                <span class="fw-bold">Linked contact:</span>
+                                <field name="envia_origin_linked_contact_display"
+                                       class="d-inline"
+                                       nolabel="1"
+                                       readonly="1"/>
+                            </div>
+                            <group string="Address details" colspan="2"
+                                   class="o_envia_address_fields mt-2">
+                                <field name="envia_origin_street" string="Street"
+                                       readonly="1"/>
+                                <field name="envia_origin_postal_code" string="Postal code"
+                                       readonly="1"/>
+                                <field name="envia_origin_city" string="City"
+                                       readonly="1"/>
+                                <field name="envia_origin_country_id" string="Country"
+                                       options="{'no_open': True}"
+                                       readonly="1"/>
+                                <field name="envia_origin_state_id" string="State / Province"
+                                       options="{'no_open': True, 'no_create': True}"
+                                       readonly="1"/>
+                            </group>
+                            <button name="action_envia_open_origin_warehouse" type="object"
+                                    string="Edit warehouse"
+                                    class="btn btn-link btn-sm p-0"
+                                    invisible="not envia_origin_warehouse_id or envia_origin_readonly"/>
+                            <div class="o_envia_side_hint mt-2"
+                                 invisible="envia_origin_location_type != 'branch'">
+                                Enter your business address above. You can drop the package at any branch of the carrier you choose.
+                            </div>
+                        </div>
+                    </group>
+                    <group string="Destination" class="o_envia_side_panel">
+                        <field name="envia_destination_location_type" widget="radio"
+                               options="{'horizontal': true}"
+                               invisible="not envia_enable_branches"/>
+                        <div class="o_envia_side_body" colspan="2">
+                            <field name="envia_destination_partner_id" string="Contact"
+                                   domain="[('id', 'in', envia_allowed_destination_partner_ids)]"
+                                   context="{'show_address': 1, 'default_type': 'delivery'}"
+                                   options="{'no_open': True}"
+                                   readonly="envia_destination_partner_readonly"/>
+                            <group string="Address details" colspan="2"
+                                   class="o_envia_address_fields mt-2">
+                                <field name="envia_destination_street" string="Street"
+                                       readonly="1"/>
+                                <field name="envia_destination_postal_code" string="Postal code"
+                                       readonly="1"/>
+                                <field name="envia_destination_city" string="City"
+                                       readonly="1"/>
+                                <field name="envia_destination_country_id" string="Country"
+                                       options="{'no_open': True}"
+                                       readonly="1"/>
+                                <field name="envia_destination_state_id" string="State / Province"
+                                       options="{'no_open': True, 'no_create': True}"
+                                       readonly="1"/>
+                            </group>
+                            <button name="action_envia_open_destination_partner" type="object"
+                                    string="Edit contact"
+                                    class="btn btn-link btn-sm p-0"
+                                    invisible="not envia_destination_partner_id"/>
+                            <div class="o_envia_side_hint mt-2"
+                                 invisible="envia_destination_location_type != 'branch'">
+                                Enter the branch address and postal code where your customer will collect.
+                            </div>
+                        </div>
+                    </group>
+                </group>
+
+                <div class="o_envia_section"
+                     invisible="not envia_show_origin_branch_picker">
+                    <div class="d-flex align-items-baseline justify-content-between gap-3 mb-2">
+                        <div class="o_envia_section_title mb-0">Origin pickup locations</div>
+                        <button name="action_envia_load_origin_branches" type="object"
+                                string="Load pickup locations"
+                                class="btn btn-link btn-sm p-0"
+                                invisible="envia_origin_branch_count"/>
+                    </div>
+                    <div class="alert alert-warning py-2 mb-2" role="status"
+                         invisible="not envia_origin_branch_load_error">
+                        <field name="envia_origin_branch_load_error" readonly="1" nolabel="1"/>
+                    </div>
+                    <div class="alert alert-light border o_envia_selected_rate_hint py-2 mb-2"
+                         role="status"
+                         invisible="not envia_origin_selected_branch_label">
+                        <i class="fa fa-check-circle text-success me-1" title="Selected"/>
+                        <field name="envia_origin_selected_branch_label" readonly="1" nolabel="1"/>
+                    </div>
+                    <field name="envia_origin_branch_line_ids" nolabel="1"
+                           class="o_envia_option_kanban" mode="kanban"
+                           invisible="not envia_origin_branch_count">
+                        <kanban create="false" delete="false" class="o_envia_option_list">
+                            <field name="is_selected"/>
+                            <field name="side"/>
+                            <field name="branch_code"/>
+                            <field name="carrier"/>
+                            <field name="option_label"/>
+                            <field name="address_label"/>
+                            <field name="price_label"/>
+                            <templates>
+                                <t t-name="card">
+                                    <div t-attf-class="o_envia_option_card #{record.is_selected.raw_value ? 'o_envia_option_selected' : ''}">
+                                        <a href="#"
+                                           class="o_envia_option_row o_envia_select_branch text-reset text-decoration-none"
+                                           t-att-data-branch-side="record.side.raw_value"
+                                           t-att-data-branch-code="record.branch_code.raw_value"
+                                           t-att-data-carrier="record.carrier.raw_value">
+                                            <span t-attf-class="o_envia_option_radio #{record.is_selected.raw_value ? 'o_envia_option_radio_checked' : ''}"/>
+                                            <span class="flex-grow-1 min-w-0">
+                                                <span class="d-flex justify-content-between gap-3 align-items-start">
+                                                    <span class="min-w-0">
+                                                        <span class="badge text-bg-success o_envia_option_selected_badge mb-1"
+                                                              t-if="record.is_selected.raw_value">
+                                                            Selected
+                                                        </span>
+                                                        <span class="fw-bold d-block" t-out="record.option_label.value"/>
+                                                        <span class="text-muted small d-block"
+                                                              t-if="record.address_label.value"
+                                                              t-out="record.address_label.value"/>
+                                                    </span>
+                                                    <span class="fw-bold text-nowrap"
+                                                          t-if="record.price_label.value"
+                                                          t-out="record.price_label.value"/>
+                                                </span>
+                                            </span>
+                                        </a>
+                                    </div>
+                                </t>
+                            </templates>
+                        </kanban>
+                    </field>
+                </div>
+
+                <div class="o_envia_section"
+                     invisible="not envia_show_destination_branch_picker">
+                    <div class="d-flex align-items-baseline justify-content-between gap-3 mb-2">
+                        <div class="o_envia_section_title mb-0">Destination pickup locations</div>
+                        <button name="action_envia_load_destination_branches" type="object"
+                                string="Load pickup locations"
+                                class="btn btn-link btn-sm p-0"
+                                invisible="envia_destination_branch_count"/>
+                    </div>
+                    <div class="alert alert-warning py-2 mb-2" role="status"
+                         invisible="not envia_destination_branch_load_error">
+                        <field name="envia_destination_branch_load_error" readonly="1" nolabel="1"/>
+                    </div>
+                    <div class="alert alert-light border o_envia_selected_rate_hint py-2 mb-2"
+                         role="status"
+                         invisible="not envia_destination_selected_branch_label">
+                        <i class="fa fa-check-circle text-success me-1" title="Selected"/>
+                        <field name="envia_destination_selected_branch_label" readonly="1" nolabel="1"/>
+                    </div>
+                    <field name="envia_destination_branch_line_ids" nolabel="1"
+                           class="o_envia_option_kanban" mode="kanban"
+                           invisible="not envia_destination_branch_count">
+                        <kanban create="false" delete="false" class="o_envia_option_list">
+                            <field name="is_selected"/>
+                            <field name="side"/>
+                            <field name="branch_code"/>
+                            <field name="carrier"/>
+                            <field name="option_label"/>
+                            <field name="address_label"/>
+                            <field name="price_label"/>
+                            <templates>
+                                <t t-name="card">
+                                    <div t-attf-class="o_envia_option_card #{record.is_selected.raw_value ? 'o_envia_option_selected' : ''}">
+                                        <a href="#"
+                                           class="o_envia_option_row o_envia_select_branch text-reset text-decoration-none"
+                                           t-att-data-branch-side="record.side.raw_value"
+                                           t-att-data-branch-code="record.branch_code.raw_value"
+                                           t-att-data-carrier="record.carrier.raw_value">
+                                            <span t-attf-class="o_envia_option_radio #{record.is_selected.raw_value ? 'o_envia_option_radio_checked' : ''}"/>
+                                            <span class="flex-grow-1 min-w-0">
+                                                <span class="d-flex justify-content-between gap-3 align-items-start">
+                                                    <span class="min-w-0">
+                                                        <span class="badge text-bg-success o_envia_option_selected_badge mb-1"
+                                                              t-if="record.is_selected.raw_value">
+                                                            Selected
+                                                        </span>
+                                                        <span class="fw-bold d-block" t-out="record.option_label.value"/>
+                                                        <span class="text-muted small d-block"
+                                                              t-if="record.address_label.value"
+                                                              t-out="record.address_label.value"/>
+                                                    </span>
+                                                    <span class="fw-bold text-nowrap"
+                                                          t-if="record.price_label.value"
+                                                          t-out="record.price_label.value"/>
+                                                </span>
+                                            </span>
+                                        </a>
+                                    </div>
+                                </t>
+                            </templates>
+                        </kanban>
+                    </field>
+                </div>
+
+                <div class="o_envia_section o_envia_rates_section"
+                     invisible="not envia_show_service_rates and not envia_rates_feedback">
+                    <div class="d-flex align-items-baseline justify-content-between gap-3 mb-2">
+                        <div class="o_envia_section_title mb-0">Rates</div>
+                        <div class="text-success small" invisible="not envia_cheapest_rate_label">
+                            <field name="envia_cheapest_rate_label" readonly="1" nolabel="1"/>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning py-2 mb-2" role="status"
+                         invisible="not envia_rates_feedback">
+                        <field name="envia_rates_feedback" readonly="1" nolabel="1"/>
+                    </div>
+                    <div class="alert alert-light border o_envia_selected_rate_hint py-2 mb-2"
+                         role="status"
+                         invisible="not envia_selected_service_label">
+                        <i class="fa fa-check-circle text-success me-1" title="Selected"/>
+                        <field name="envia_selected_service_label" readonly="1" nolabel="1"/>
+                    </div>
+                    <field name="envia_service_line_ids" nolabel="1"
+                           class="o_envia_option_kanban" mode="kanban"
+                           invisible="not envia_show_service_rates">
+                        <kanban create="false" delete="false" class="o_envia_option_list">
+                            <field name="is_selected"/>
+                            <field name="service_id"/>
+                            <field name="option_label"/>
+                            <field name="price_label"/>
+                            <field name="route_type_label"/>
+                            <templates>
+                                <t t-name="card">
+                                    <div t-attf-class="o_envia_option_card #{record.is_selected.raw_value ? 'o_envia_option_selected' : ''}">
+                                        <a href="#"
+                                           class="o_envia_option_row o_envia_select_rate text-reset text-decoration-none"
+                                           t-att-data-service-id="record.service_id.raw_value">
+                                            <span t-attf-class="o_envia_option_radio #{record.is_selected.raw_value ? 'o_envia_option_radio_checked' : ''}"/>
+                                            <span class="flex-grow-1 min-w-0">
+                                                <span class="d-flex justify-content-between gap-3 align-items-start">
+                                                    <span class="min-w-0">
+                                                        <span class="badge text-bg-success o_envia_option_selected_badge mb-1"
+                                                              t-if="record.is_selected.raw_value">
+                                                            Selected
+                                                        </span>
+                                                        <span class="fw-bold d-block" t-out="record.option_label.value"/>
+                                                        <span class="badge rounded-pill o_envia_route_type_badge"
+                                                              t-if="record.route_type_label.value"
+                                                              t-out="record.route_type_label.value"/>
+                                                    </span>
+                                                    <span class="fw-bold text-nowrap" t-out="record.price_label.value"/>
+                                                </span>
+                                            </span>
+                                        </a>
+                                    </div>
+                                </t>
+                            </templates>
+                        </kanban>
+                    </field>
+                </div>
+
+                <div class="text-danger mb-2" role="alert"
+                     invisible="envia_can_get_rates or not envia_blocking_message">
+                    <field name="envia_blocking_message" readonly="1" nolabel="1"/>
+                </div>
+
+                <div role="alert" class="alert alert-secondary mb-0">
+                    Configure origin and destination, click <strong>Get rate</strong>, then pick a service.
+                </div>
+                </div>
+            </xpath>
+            <xpath expr="//footer/button[@name='button_confirm'][1]" position="before">
+                <div class="me-auto"/>
+            </xpath>
+            <xpath expr="//footer/button[@name='button_confirm'][2]" position="attributes">
+                <attribute name="invisible">context.get('carrier_recompute') or (delivery_type not in ('fixed', 'base_on_rule') and not display_price and not (delivery_type == 'envia' and (envia_has_selected_rate or envia_selected_service_label)))</attribute>
+            </xpath>
+            <xpath expr="//footer/button[@name='button_confirm'][3]" position="attributes">
+                <attribute name="invisible">context.get('carrier_recompute') or display_price or delivery_type in ('fixed', 'base_on_rule') or delivery_type == 'envia'</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>
