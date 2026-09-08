@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_users_apikeys_view_kanban_envia" model="ir.ui.view">
+        <field name="name">res.users.apikeys.kanban.envia</field>
+        <field name="model">res.users.apikeys</field>
+        <field name="inherit_id" ref="base.res_users_apikeys_view_kanban"/>
+        <field name="arch" type="xml">
+            <!-- Keep core fields; only add humanized Envia label (no replace). -->
+            <xpath expr="//small[field[@name='expiration_date']]" position="after">
+                <small class="d-block text-muted">
+                    <field name="envia_expiration_label"/>
+                </small>
+            </xpath>
+        </field>
+    </record>
+</odoo>

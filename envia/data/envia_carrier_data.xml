@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="envia_carrier_dhl" model="envia.carrier">
+        <field name="name">DHL</field>
+        <field name="code">dhl</field>
+        <field name="color">3</field>
+        <field name="country_codes">MX,US,CA,ES</field>
+    </record>
+    <record id="envia_carrier_fedex" model="envia.carrier">
+        <field name="name">FedEx</field>
+        <field name="code">fedex</field>
+        <field name="color">4</field>
+        <field name="country_codes">MX,US,CA</field>
+    </record>
+    <record id="envia_carrier_estafeta" model="envia.carrier">
+        <field name="name">Estafeta</field>
+        <field name="code">estafeta</field>
+        <field name="color">7</field>
+        <field name="country_codes">MX</field>
+    </record>
+    <record id="envia_carrier_ups" model="envia.carrier">
+        <field name="name">UPS</field>
+        <field name="code">ups</field>
+        <field name="color">2</field>
+        <field name="country_codes">MX,US,CA</field>
+    </record>
+    <record id="envia_carrier_redpack" model="envia.carrier">
+        <field name="name">Redpack</field>
+        <field name="code">redpack</field>
+        <field name="color">1</field>
+        <field name="country_codes">MX</field>
+    </record>
+    <record id="envia_carrier_paquetexpress" model="envia.carrier">
+        <field name="name">Paquetexpress</field>
+        <field name="code">paquetexpress</field>
+        <field name="color">5</field>
+        <field name="country_codes">MX</field>
+    </record>
+    <record id="envia_carrier_sendex" model="envia.carrier">
+        <field name="name">Sendex</field>
+        <field name="code">sendex</field>
+        <field name="color">6</field>
+        <field name="country_codes">MX</field>
+    </record>
+    <record id="envia_carrier_ampm" model="envia.carrier">
+        <field name="name">AMPM</field>
+        <field name="code">ampm</field>
+        <field name="color">8</field>
+        <field name="country_codes">MX</field>
+    </record>
+    <record id="envia_carrier_jtexpress" model="envia.carrier">
+        <field name="name">JT Express</field>
+        <field name="code">jtexpress</field>
+        <field name="color">9</field>
+        <field name="country_codes">MX</field>
+    </record>
+    <record id="envia_carrier_ninetynineminutos" model="envia.carrier">
+        <field name="name">99 Minutos</field>
+        <field name="code">99minutos</field>
+        <field name="color">10</field>
+        <field name="country_codes">MX</field>
+    </record>
+</odoo>

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_envia_quote_onboarding_wizard_form" model="ir.ui.view">
+        <field name="name">envia.quote.onboarding.wizard.form</field>
+        <field name="model">envia.quote.onboarding.wizard</field>
+        <field name="arch" type="xml">
+            <form string="How to Quote with Envia" class="o_envia_plugin_connect_wizard">
+                <field name="company_id" invisible="1"/>
+
+                <sheet>
+                    <div class="o_envia_welcome_screen">
+                        <div class="o_envia_welcome_content text-center">
+                            <div class="o_envia_welcome_icon mb-3">
+                                <i class="fa fa-calculator fa-3x text-primary" title="Envia Quotes"/>
+                            </div>
+                            <h1 class="mb-2">Quote shipments with Envia.com</h1>
+                            <p class="text-muted mb-4 o_envia_welcome_lead">
+                                Get carrier rates from Envia.com on confirmed sale orders
+                                or delivery orders, compare options, and create labels in Odoo.
+                            </p>
+
+                            <div class="o_envia_welcome_steps text-start mb-4">
+                                <div class="o_envia_welcome_step">
+                                    <span class="o_envia_welcome_step_number">1</span>
+                                    <div>
+                                        <div class="fw-bold">Open a confirmed order</div>
+                                        <div class="text-muted small">
+                                            Use a confirmed sale order or a delivery order
+                                            with origin and destination addresses filled in.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="o_envia_welcome_step">
+                                    <span class="o_envia_welcome_step_number">2</span>
+                                    <div>
+                                        <div class="fw-bold">Click Quote Shipment</div>
+                                        <div class="text-muted small">
+                                            The quote wizard opens with shipment details.
+                                            Adjust weight if needed.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="o_envia_welcome_step">
+                                    <span class="o_envia_welcome_step_number">3</span>
+                                    <div>
+                                        <div class="fw-bold">Compare and select a rate</div>
+                                        <div class="text-muted small">
+                                            Review carrier services, prices, and delivery times.
+                                            Pick the best option for your shipment.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="o_envia_welcome_step">
+                                    <span class="o_envia_welcome_step_number">4</span>
+                                    <div>
+                                        <div class="fw-bold">Confirm and create the label</div>
+                                        <div class="text-muted small">
+                                            Save the quote, then use Envia: Create Label
+                                            when you are ready to ship.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="o_envia_welcome_actions d-flex flex-column flex-sm-row justify-content-center gap-2">
+                                <button name="action_go_to_quotes" type="object"
+                                        string="Quote Shipment"
+                                        class="btn btn-primary btn-lg"
+                                        icon="fa-calculator"/>
+                            </div>
+                        </div>
+                    </div>
+                </sheet>
+
+                <footer>
+                    <button name="action_go_to_quotes" type="object"
+                            string="Quote Shipment"
+                            class="btn-primary"
+                            icon="fa-calculator"/>
+                    <button string="Close" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

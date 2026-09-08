@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="envia.EnviaDashboardAction">
+        <div t-att-class="props.className"
+             class="o_envia_dashboard_action o_action h-100">
+            <iframe t-if="url"
+                    class="o_envia_dashboard_iframe"
+                    t-att-src="url"
+                    title="Envia.com"
+                    allow="clipboard-read; clipboard-write"
+                    referrerpolicy="strict-origin-when-cross-origin"/>
+            <div t-else="" class="o_view_nocontent">
+                <div class="o_nocontent_help">
+                    <p class="o_view_nocontent_smiling_face">Envia.com dashboard unavailable</p>
+                </div>
+            </div>
+        </div>
+    </t>
+
+</templates>
