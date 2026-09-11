@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="envia.EnviaApiKeyField">
+        <t t-if="value">
+            <div class="o_envia_api_key_field d-flex align-items-center gap-2">
+                <span t-if="state.isRevealed"
+                      class="o_envia_api_key_value font-monospace text-break flex-grow-1 user-select-all"
+                      t-esc="value"/>
+                <input t-else=""
+                       class="o_input border-0 py-0 o_disabled opacity-100 flex-grow-1 font-monospace"
+                       type="text"
+                       t-att-value="maskedValue"
+                       readonly="readonly"
+                       tabindex="-1"/>
+                <button type="button"
+                        class="btn btn-link fa p-0"
+                        t-att-class="revealButtonClass"
+                        t-att-title="buttonTitle"
+                        t-on-click.stop="onToggleReveal"/>
+                <CopyButton className="copyButtonClassName"
+                            content="value"
+                            icon="copyButtonIcon"
+                            successText="copySuccessText"/>
+            </div>
+            <div class="text-muted small mt-1">
+                <t t-esc="helperText"/>
+            </div>
+        </t>
+        <input t-else=""
+               class="o_input o_disabled opacity-100 font-monospace"
+               type="text"
+               readonly="readonly"
+               placeholder="No API token stored"/>
+    </t>
+
+</templates>

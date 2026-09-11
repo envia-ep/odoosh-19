@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_envia_warehouse_origin_wizard_form" model="ir.ui.view">
+        <field name="name">envia.warehouse.origin.wizard.form</field>
+        <field name="model">envia.warehouse.origin.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Link warehouse to Envia origin">
+                <field name="company_id" invisible="1"/>
+                <field name="address_line_ids" invisible="1"/>
+                <field name="warehouse_readonly" invisible="1"/>
+                <div class="alert alert-warning" role="alert" invisible="not load_error">
+                    <field name="load_error" nolabel="1" readonly="1"/>
+                </div>
+                <group>
+                    <field name="warehouse_id"
+                           options="{'no_create': True}"
+                           required="1"
+                           readonly="warehouse_readonly"/>
+                    <field name="address_line_id"
+                           options="{'no_create': True, 'no_open': True}"
+                           required="1"/>
+                    <field name="update_warehouse_partner"/>
+                </group>
+                <footer>
+                    <button name="action_save" type="object" string="Save match"
+                            class="btn-primary" icon="fa-link"/>
+                    <button name="action_refresh_addresses" type="object"
+                            string="Refresh addresses" class="btn-secondary"
+                            icon="fa-refresh"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
