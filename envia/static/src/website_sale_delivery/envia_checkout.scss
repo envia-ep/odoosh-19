@@ -1,0 +1,169 @@
+.o_envia_delivery_panel {
+    --o-envia-ink: #212529;
+    --o-envia-muted: #6c757d;
+    --o-envia-line: #dee2e6;
+    --o-envia-soft: #f8f9fa;
+    // Delivery column is always narrow; size against the panel, not the viewport.
+    container-type: inline-size;
+    container-name: envia-delivery;
+}
+
+.o_envia_delivery_panel .o_envia_route_toggle {
+    display: flex;
+    width: 100%;
+    border: 1px solid var(--o-envia-ink);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.o_envia_delivery_panel .o_envia_route_btn {
+    flex: 1 1 50%;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.2;
+    padding: 0.7rem 0.5rem;
+    color: var(--o-envia-ink);
+    background: #fff;
+    cursor: pointer;
+}
+
+.o_envia_delivery_panel .o_envia_route_btn + .o_envia_route_btn {
+    border-left: 1px solid var(--o-envia-ink);
+}
+
+.o_envia_delivery_panel .o_envia_route_btn.active {
+    color: #fff;
+    background-color: var(--o-envia-ink);
+}
+
+.o_envia_delivery_panel .o_envia_options_list {
+    max-height: 400px; // ponytail: avoid Sass min(px, vh) which breaks asset build
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--o-envia-line);
+    border-radius: 0.5rem;
+    padding: 0;
+    margin-bottom: 0.75rem;
+    position: relative;
+    z-index: 2; // keep rates above map popups if they ever spill
+}
+
+.o_envia_delivery_panel .o_envia_option_item.list-group-item {
+    border: 0 !important;
+    border-bottom: 1px solid var(--o-envia-line) !important;
+    border-radius: 0 !important;
+    padding: 0.75rem 0.85rem;
+    background: #fff;
+    box-shadow: none !important;
+}
+
+.o_envia_delivery_panel .o_envia_option_item.list-group-item:last-child {
+    border-bottom: 0 !important;
+}
+
+.o_envia_delivery_panel .o_envia_option_item.o_envia_option_selected.list-group-item {
+    background: var(--o-envia-soft) !important;
+    box-shadow: inset 3px 0 0 var(--o-envia-ink) !important;
+}
+
+.o_envia_delivery_panel .o_envia_option_label {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+    width: 100%;
+    margin: 0;
+    cursor: pointer;
+}
+
+.o_envia_delivery_panel .o_envia_option_radio {
+    margin-top: 0.15rem;
+    flex: 0 0 auto;
+}
+
+.o_envia_delivery_panel .o_envia_option_body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+// Always stack in this column: title then price (column is rare wide enough for both).
+.o_envia_delivery_panel .o_envia_option_header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+}
+
+.o_envia_delivery_panel .o_envia_option_name {
+    font-weight: 600;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.o_envia_delivery_panel .o_envia_option_price {
+    font-weight: 700;
+    font-size: 0.95rem;
+    white-space: nowrap;
+}
+
+.o_envia_delivery_panel .o_envia_option_address,
+.o_envia_delivery_panel .o_envia_option_service {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--o-envia-muted);
+    word-break: break-word;
+}
+
+.o_envia_delivery_panel .o_envia_option_service {
+    color: var(--o-envia-ink);
+    opacity: 0.85;
+}
+
+.o_envia_delivery_panel .o_envia_map {
+    // Clip popups inside the map so they never cover the rates list above.
+    z-index: 0;
+    overflow: hidden;
+    background: var(--o-envia-soft);
+    border-radius: 0.5rem;
+    position: relative;
+}
+
+.o_envia_delivery_panel .o_envia_map .leaflet-container {
+    width: 100%;
+    height: 100%;
+    border-radius: 0.5rem;
+}
+
+.o_envia_delivery_panel .o_envia_map .leaflet-popup-content {
+    margin: 0.55rem 0.75rem;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+@container envia-delivery (max-width: 360px) {
+    .o_envia_options_list {
+        max-height: 340px;
+    }
+
+    .o_envia_map {
+        min-height: 260px !important;
+        height: 260px !important;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .o_envia_delivery_panel .o_envia_options_list {
+        max-height: 340px;
+    }
+
+    .o_envia_delivery_panel .o_envia_map {
+        min-height: 260px !important;
+        height: 260px !important;
+    }
+}
