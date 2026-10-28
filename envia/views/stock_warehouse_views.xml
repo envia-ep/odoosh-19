@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_warehouse_form_envia" model="ir.ui.view">
+        <field name="name">stock.warehouse.form.envia</field>
+        <field name="model">stock.warehouse</field>
+        <field name="inherit_id" ref="stock.view_warehouse"/>
+        <field name="arch" type="xml">
+            <field name="partner_id" position="after">
+                <field name="envia_origin_id" invisible="1"/>
+                <label for="envia_origin_label" string="Envia origin"/>
+                <div class="o_row">
+                    <field name="envia_origin_label"
+                           nolabel="1"
+                           readonly="1"
+                           placeholder="Not linked"/>
+                    <button name="action_envia_link_origin" type="object"
+                            string="Edit origin"
+                            class="btn-link"
+                            icon="fa-pencil"
+                            groups="envia.group_envia_manager"/>
+                    <button name="action_envia_create_origin" type="object"
+                            string="Create origin"
+                            class="btn-link"
+                            icon="fa-plus"
+                            groups="envia.group_envia_manager"/>
+                </div>
+            </field>
+        </field>
+    </record>
+</odoo>

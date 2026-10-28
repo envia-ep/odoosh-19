@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_envia_billing_info_wizard_form" model="ir.ui.view">
+        <field name="name">envia.billing.info.wizard.form</field>
+        <field name="model">envia.billing.info.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Billing info">
+                <field name="company_id" invisible="1"/>
+                <field name="schema_json" invisible="1"/>
+                <field name="option_ids" invisible="1"/>
+                <field name="show_state_field" invisible="1"/>
+                <field name="show_city_field" invisible="1"/>
+                <field name="state_required" invisible="1"/>
+                <field name="city_required" invisible="1"/>
+                <field name="state_label" invisible="1"/>
+                <field name="city_label" invisible="1"/>
+                <div class="alert alert-warning" role="alert" invisible="not schema_warning">
+                    <field name="schema_warning" nolabel="1" readonly="1"/>
+                </div>
+                <group>
+                    <group>
+                        <field name="name" placeholder="Full name"/>
+                        <field name="email" placeholder="Email"/>
+                    </group>
+                    <group>
+                        <field name="company_name" placeholder="Company"/>
+                        <label for="phone" string="Phone"/>
+                        <div class="o_row">
+                            <field name="phone_dial_code" placeholder="+52" class="oe_inline"/>
+                            <field name="phone" placeholder="Phone" class="oe_inline" nolabel="1"/>
+                        </div>
+                    </group>
+                </group>
+                <group>
+                    <field name="country_id" options="{'no_create': True, 'no_open': True}"/>
+                    <field name="state_option_id"
+                           string="State"
+                           invisible="not show_state_field"
+                           options="{'no_create': True, 'no_open': True}"/>
+                    <field name="city_option_id"
+                           string="City"
+                           invisible="not show_city_field"
+                           options="{'no_create': True, 'no_open': True}"/>
+                </group>
+                <field name="line_ids" nolabel="1">
+                    <list editable="bottom" create="0" delete="0">
+                        <field name="field_id" column_invisible="1"/>
+                        <field name="data_name" column_invisible="1"/>
+                        <field name="data_type" column_invisible="1"/>
+                        <field name="required" column_invisible="1"/>
+                        <field name="placeholder" column_invisible="1"/>
+                        <field name="geocode_template" column_invisible="1"/>
+                        <field name="on_change_json" column_invisible="1"/>
+                        <field name="label" readonly="1"/>
+                        <field name="value" invisible="data_type == 'select'" placeholder="Value"/>
+                        <field name="option_id"
+                               invisible="data_type != 'select'"
+                               options="{'no_create': True, 'no_open': True}"
+                               domain="[('id', 'in', option_ids)]"/>
+                        <field name="option_ids" column_invisible="1"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_validate" type="object" string="Validate"
+                            class="btn-primary"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

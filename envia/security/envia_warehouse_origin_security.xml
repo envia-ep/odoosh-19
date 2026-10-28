@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Access via search: avoids missing model_* xmlid on first upgrade in a long-lived worker. -->
+    <record id="access_envia_warehouse_origin_user" model="ir.model.access">
+        <field name="name">envia.warehouse.origin.user</field>
+        <field name="model_id" search="[('model', '=', 'envia.warehouse.origin')]"/>
+        <field name="group_id" ref="group_envia_user"/>
+        <field name="perm_read" eval="1"/>
+        <field name="perm_write" eval="0"/>
+        <field name="perm_create" eval="0"/>
+        <field name="perm_unlink" eval="0"/>
+    </record>
+    <record id="access_envia_warehouse_origin_manager" model="ir.model.access">
+        <field name="name">envia.warehouse.origin.manager</field>
+        <field name="model_id" search="[('model', '=', 'envia.warehouse.origin')]"/>
+        <field name="group_id" ref="group_envia_manager"/>
+        <field name="perm_read" eval="1"/>
+        <field name="perm_write" eval="1"/>
+        <field name="perm_create" eval="1"/>
+        <field name="perm_unlink" eval="0"/>
+    </record>
+    <record id="access_envia_warehouse_origin_wizard_user" model="ir.model.access">
+        <field name="name">envia.warehouse.origin.wizard.user</field>
+        <field name="model_id" search="[('model', '=', 'envia.warehouse.origin.wizard')]"/>
+        <field name="group_id" ref="group_envia_manager"/>
+        <field name="perm_read" eval="1"/>
+        <field name="perm_write" eval="1"/>
+        <field name="perm_create" eval="1"/>
+        <field name="perm_unlink" eval="1"/>
+    </record>
+    <record id="access_envia_warehouse_origin_wizard_address_user" model="ir.model.access">
+        <field name="name">envia.warehouse.origin.wizard.address.user</field>
+        <field name="model_id" search="[('model', '=', 'envia.warehouse.origin.wizard.address')]"/>
+        <field name="group_id" ref="group_envia_manager"/>
+        <field name="perm_read" eval="1"/>
+        <field name="perm_write" eval="1"/>
+        <field name="perm_create" eval="1"/>
+        <field name="perm_unlink" eval="1"/>
+    </record>
+    <record id="envia_warehouse_origin_comp_rule" model="ir.rule">
+        <field name="name">Envia Warehouse Origin: multi-company</field>
+        <field name="model_id" search="[('model', '=', 'envia.warehouse.origin')]"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>
