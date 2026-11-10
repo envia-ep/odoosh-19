@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="envia.GenericFormDialog">
+        <Dialog title.translate="Origin address" size="'xl'" contentClass="'o_envia_generic_form_dialog'">
+            <div class="o_envia_generic_form">
+                <div class="o_envia_gf_body">
+                    <div t-if="state.loading" class="text-muted p-3" t-esc="ui.loading"/>
+                    <div t-elif="state.error" class="alert alert-warning m-3" t-esc="state.error"/>
+                    <t t-else="">
+                        <div class="o_envia_gf_section">
+                            <div class="o_envia_gf_grid">
+                                <div class="o_envia_gf_field o_envia_gf_size_l">
+                                    <span class="o_envia_gf_label">
+                                        <t t-esc="ui.warehouse"/> *
+                                    </span>
+                                    <SelectMenu choices="warehouseChoices"
+                                                value="state.warehouseId"
+                                                required="true"
+                                                searchable="true"
+                                                autoSort="true"
+                                                placeholder="ui.searchWarehouse"
+                                                searchPlaceholder="ui.search"
+                                                class="'o_envia_gf_select'"
+                                                onSelect.bind="onWarehouseSelect"/>
+                                    <span t-if="state.errors._warehouse" class="invalid-feedback d-block"
+                                          t-esc="state.errors._warehouse"/>
+                                </div>
+                            </div>
+                            <div t-if="selectedWarehouse" class="o_envia_gf_warehouse_info mt-2">
+                                <div class="o_envia_gf_warehouse_info_title" t-esc="ui.warehouseAddress"/>
+                                <div class="o_envia_gf_warehouse_info_text"
+                                     t-esc="selectedWarehouse.address_label or ui.noWarehouseAddress"/>
+                            </div>
+                        </div>
+
+                        <div class="o_envia_gf_section">
+                            <div class="o_envia_gf_grid">
+                                <label class="o_envia_gf_field o_envia_gf_size_l">
+                                    <span class="o_envia_gf_label">
+                                        <t t-esc="ui.fullName"/> *
+                                    </span>
+                                    <input type="text" class="form-control"
+                                           t-att-class="{'is-invalid': state.errors._name}"
+                                           t-att-value="state.identity.name"
+                                           t-on-input="(ev) => this.onIdentityInput('name', ev)"
+                                           t-att-placeholder="ui.fullName"/>
+                                    <span t-if="state.errors._name" class="invalid-feedback d-block"
+                                          t-esc="state.errors._name"/>
+                                </label>
+                                <label class="o_envia_gf_field o_envia_gf_size_m">
+                                    <span class="o_envia_gf_label" t-esc="ui.company"/>
+                                    <input type="text" class="form-control"
+                                           t-att-value="state.identity.company"
+                                           t-on-input="(ev) => this.onIdentityInput('company', ev)"
+                                           t-att-placeholder="ui.company"/>
+                                </label>
+                                <label class="o_envia_gf_field o_envia_gf_size_m">
+                                    <span class="o_envia_gf_label">
+                                        <t t-esc="ui.email"/> *
+                                    </span>
+                                    <input type="email" class="form-control"
+                                           t-att-class="{'is-invalid': state.errors._email}"
+                                           t-att-value="state.identity.email"
+                                           t-on-input="(ev) => this.onIdentityInput('email', ev)"
+                                           t-att-placeholder="ui.email"/>
+                                    <span t-if="state.errors._email" class="invalid-feedback d-block"
+                                          t-esc="state.errors._email"/>
+                                </label>
+                                <label class="o_envia_gf_field o_envia_gf_size_m">
+                                    <span class="o_envia_gf_label">
+                                        <t t-esc="ui.phone"/> *
+                                    </span>
+                                    <div class="o_envia_gf_phone">
+                                        <input type="text" class="form-control o_envia_gf_dial"
+                                               t-att-value="state.phoneCode" readonly="1"/>
+                                        <input type="text" class="form-control"
+                                               t-att-class="{'is-invalid': state.errors._phone}"
+                                               t-att-value="state.identity.phone"
+                                               t-on-input="(ev) => this.onIdentityInput('phone', ev)"
+                                               t-att-placeholder="ui.phone"/>
+                                    </div>
+                                    <span t-if="state.errors._phone" class="invalid-feedback d-block"
+                                          t-esc="state.errors._phone"/>
+                                </label>
+                                <div class="o_envia_gf_field o_envia_gf_size_m">
+                                    <span class="o_envia_gf_label">
+                                        <t t-esc="ui.country"/> *
+                                    </span>
+                                    <SelectMenu choices="countryChoices"
+                                                value="state.countryCode"
+                                                required="true"
+                                                searchable="true"
+                                                autoSort="true"
+                                                placeholder="ui.searchCountry"
+                                                searchPlaceholder="ui.search"
+                                                class="'o_envia_gf_select'"
+                                                onSelect.bind="onCountrySelect"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="o_envia_gf_section">
+                            <div class="o_envia_gf_grid">
+                                <t t-foreach="visibleFields" t-as="field" t-key="field.fieldId or field.fieldName">
+                                    <div t-att-class="'o_envia_gf_field ' + sizeClass(field)">
+                                        <span class="o_envia_gf_label">
+                                            <t t-esc="fieldLabelText(field)"/>
+                                            <t t-if="field.rules and field.rules.required"> *</t>
+                                        </span>
+                                        <div class="o_envia_gf_control"
+                                             t-att-class="{
+                                                 'o_envia_gf_busy': state.busyField === (field.fieldName or field.fieldId),
+                                                 'is-invalid': state.errors[field.fieldName or field.fieldId],
+                                             }">
+                                            <i t-if="faClass(field)" t-att-class="'o_envia_gf_icon ' + faClass(field)"/>
+                                            <t t-if="isSelect(field)">
+                                                <SelectMenu choices="fieldChoices(field)"
+                                                            value="fieldValue(field)"
+                                                            required="fieldRequired(field)"
+                                                            searchable="true"
+                                                            autoSort="true"
+                                                            placeholder="selectPlaceholder(field)"
+                                                            searchPlaceholder="ui.search"
+                                                            class="'o_envia_gf_select'"
+                                                            onSelect="(value) => this.onSelectField(field, value)"/>
+                                            </t>
+                                            <t t-else="">
+                                                <input t-att-type="inputType(field)"
+                                                       class="form-control"
+                                                       t-att-class="{'is-invalid': state.errors[field.fieldName or field.fieldId]}"
+                                                       t-att-value="state.values[field.fieldName or field.fieldId] or ''"
+                                                       t-att-placeholder="fieldPlaceholderText(field)"
+                                                       t-att-minlength="field.rules and field.rules.min"
+                                                       t-att-maxlength="field.rules and field.rules.max"
+                                                       t-on-change="(ev) => this.onFieldInput(field, ev)"/>
+                                            </t>
+                                        </div>
+                                        <span t-if="state.errors[field.fieldName or field.fieldId]"
+                                              class="invalid-feedback d-block"
+                                              t-esc="state.errors[field.fieldName or field.fieldId]"/>
+                                    </div>
+                                </t>
+                            </div>
+                        </div>
+                    </t>
+                </div>
+            </div>
+            <t t-set-slot="footer">
+                <button type="button" class="btn btn-primary" t-on-click="onValidate"
+                        t-att-disabled="state.loading or state.saving">
+                    <t t-if="state.saving" t-esc="ui.saving"/>
+                    <t t-else="" t-esc="ui.save"/>
+                </button>
+                <button type="button" class="btn btn-secondary" t-on-click="props.close"
+                        t-att-disabled="state.saving" t-esc="ui.cancel"/>
+            </t>
+        </Dialog>
+    </t>
+</templates>
