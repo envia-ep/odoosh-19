@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="onboarding_onboarding_step_connect" model="onboarding.onboarding.step">
+            <field name="title">Connect your store</field>
+            <field name="description">Link Odoo with Envia.com to get live shipping rates.</field>
+            <field name="button_text">Connect</field>
+            <field name="done_text">Store connected!</field>
+            <field name="panel_step_open_action_name">action_open_step_envia_connect</field>
+            <field name="step_image" type="base64" file="base/static/img/onboarding_company-data.png"/>
+            <field name="step_image_filename">onboarding_envia-connect.png</field>
+            <field name="step_image_alt">Connect Envia store</field>
+            <field name="sequence">1</field>
+        </record>
+
+        <record id="onboarding_onboarding_step_sale_order" model="onboarding.onboarding.step">
+            <field name="title">Open a sale order</field>
+            <field name="description">Use a confirmed sale order with origin and destination addresses.</field>
+            <field name="button_text">Open order</field>
+            <field name="done_text">Order opened!</field>
+            <field name="panel_step_open_action_name">action_open_step_envia_sale_order</field>
+            <field name="step_image" type="base64" file="base/static/img/onboarding_quotation-layout.png"/>
+            <field name="step_image_filename">onboarding_envia-sale-order.png</field>
+            <field name="step_image_alt">Open sale order</field>
+            <field name="sequence">2</field>
+        </record>
+
+        <record id="onboarding_onboarding_step_get_rates" model="onboarding.onboarding.step">
+            <field name="title">Get shipping rates</field>
+            <field name="description">Use Add shipping on a confirmed sale order to compare carriers.</field>
+            <field name="button_text">Get rates</field>
+            <field name="done_text">Rates received!</field>
+            <field name="panel_step_open_action_name">action_open_step_envia_get_rates</field>
+            <field name="step_image" type="base64" file="base/static/img/onboarding_puzzle.png"/>
+            <field name="step_image_filename">onboarding_envia-get-rates.png</field>
+            <field name="step_image_alt">Get shipping rates</field>
+            <field name="sequence">3</field>
+        </record>
+
+        <record id="onboarding_onboarding_step_create_label" model="onboarding.onboarding.step">
+            <field name="title">Create a shipping label</field>
+            <field name="description">Select a rate and generate your Envia label.</field>
+            <field name="button_text">Create label</field>
+            <field name="done_text">Label ready!</field>
+            <field name="panel_step_open_action_name">action_open_step_envia_create_label</field>
+            <field name="step_image" type="base64" file="base/static/img/onboarding_sample-quotation.png"/>
+            <field name="step_image_filename">onboarding_envia-create-label.png</field>
+            <field name="step_image_alt">Create shipping label</field>
+            <field name="sequence">4</field>
+        </record>
+
+        <record id="onboarding_onboarding_envia_quotes" model="onboarding.onboarding">
+            <field name="name">Envia Quotes Onboarding</field>
+            <field name="step_ids" eval="[
+                Command.link(ref('envia.onboarding_onboarding_step_connect')),
+                Command.link(ref('envia.onboarding_onboarding_step_sale_order')),
+                Command.link(ref('envia.onboarding_onboarding_step_get_rates')),
+                Command.link(ref('envia.onboarding_onboarding_step_create_label')),
+            ]"/>
+            <field name="route_name">envia_quotes</field>
+            <field name="panel_close_action_name">action_close_panel_envia_quotes</field>
+            <field name="text_completed">Nice work! You know how to quote with Envia.</field>
+        </record>
+    </data>
+</odoo>
