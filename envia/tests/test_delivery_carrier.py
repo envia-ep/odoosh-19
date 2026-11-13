@@ -523,10 +523,31 @@ class TestEnviaDeliveryCarrier(TransactionCase):
         ) as get_adapter:
             get_adapter.return_value.quote.return_value = response
             with patch.object(type(wizard), "_try_load_branch_side", return_value=False):
-                wizard.action_get_quote(clear_branch_lines=False)
-                wizard.action_select_service_rate(service_id="paquetexpress:bb")
+                with patch.object(
+                    type(wizard), "_load_origin_branches_for_rate", return_value=None
+                ):
+                    wizard.action_get_quote(clear_branch_lines=False)
+                    wizard.action_select_service_rate(service_id="paquetexpress:bb")
         self.assertTrue(wizard.show_destination_branch_picker)
-        self.assertFalse(wizard.show_origin_branch_picker)
+        self.assertTrue(wizard.show_origin_branch_picker)
+        self.assertEqual(wizard.origin_location_type, "branch")
+        self.assertEqual(wizard.destination_location_type, "branch")
+        origin = self.env["envia.quote.wizard.branch"].create(
+            {
+                "wizard_id": wizard.id,
+                "side": "origin",
+                "name": "MTY 1",
+                "branch_code": "MTY01",
+                "carrier": "paquetexpress",
+                "zip": "64000",
+                "city": "Monterrey",
+                "country_code": "MX",
+                "state_code": state.code,
+                "latitude": 25.67,
+                "longitude": -100.31,
+            }
+        )
+        origin.action_select_branch()
         destination = self.env["envia.quote.wizard.branch"].create(
             {
                 "wizard_id": wizard.id,
@@ -538,11 +559,13 @@ class TestEnviaDeliveryCarrier(TransactionCase):
                 "city": "CDMX",
                 "country_code": "MX",
                 "state_code": state.code,
+                "latitude": 19.43,
+                "longitude": -99.13,
             }
         )
         destination.action_select_branch()
         self.assertEqual(wizard.quote_id.destination_branch_code, "MEX05")
-        self.assertFalse(wizard.quote_id.origin_branch_code)
+        self.assertEqual(wizard.quote_id.origin_branch_code, "MTY01")
         module = self.order.read(["envia_module"])[0]["envia_module"]
         self.assertEqual(module["branch_code"], "MEX05")
 
@@ -554,6 +577,290 @@ class TestEnviaDeliveryCarrier(TransactionCase):
         self.assertEqual(line._route_type_label_for(2), "Domicile - Branch")
         self.assertEqual(line._route_type_label_for(3), "Branch - Branch")
         self.assertEqual(line._route_type_label_for(False), "Domicile - Domicile")
+
+    def test_sales_quote_keeps_mixed_drop_off_rates(self):
+        mx, state = self._mx_state()
+        response = QuoteResponse(
+            quote_id="mixed",
+            services=[
+                QuoteService(
+                    service_id="dhl:door",
+                    envia_service_id=1,
+                    carrier="dhl",
+                    carrier_name="DHL",
+                    service_name="Door",
+                    price=10.0,
+                    currency=self.order.currency_id.name,
+                    drop_off=0,
+                ),
+                QuoteService(
+                    service_id="dhl:drop",
+                    envia_service_id=2,
+                    carrier="dhl",
+                    carrier_name="DHL",
+                    service_name="Drop",
+                    price=8.0,
+                    currency=self.order.currency_id.name,
+                    drop_off=1,
+                ),
+                QuoteService(
+                    service_id="dhl:pickup",
+                    envia_service_id=3,
+                    carrier="dhl",
+                    carrier_name="DHL",
+                    service_name="Pickup",
+                    price=9.0,
+                    currency=self.order.currency_id.name,
+                    drop_off=2,
+                ),
+            ],
+        )
+        wizard = self.env["envia.quote.wizard"].with_context(
+            envia_skip_branch_autoload=True,
+            envia_skip_auto_quote=True,
+        ).create(
+            {
+                "sale_order_id": self.order.id,
+                "origin_partner_id": self.partner.id,
+                "destination_partner_id": self.partner.id,
+                "origin_street": "Padre Mier",
+                "origin_city": "Monterrey",
+                "origin_postal_code": "64000",
+                "origin_country_id": mx.id,
+                "origin_state_id": state.id,
+                "destination_street": "Insurgentes",
+                "destination_city": "CDMX",
+                "destination_postal_code": "01000",
+                "destination_country_id": mx.id,
+                "destination_state_id": state.id,
+                "weight": 1.0,
+                "content": "Test",
+            }
+        )
+        with patch(
+            "odoo.addons.envia.wizards.envia_quote_wizard.get_envia_adapter"
+        ) as get_adapter:
+            get_adapter.return_value.quote.return_value = response
+            wizard.action_get_quote(clear_branch_lines=False)
+        drop_offs = set(wizard.service_line_ids.mapped("drop_off"))
+        self.assertEqual(drop_offs, {0, 1, 2})
+        labels = set(wizard.service_line_ids.mapped("route_type_label"))
+        self.assertIn("Domicile - Domicile", labels)
+        self.assertIn("Branch - Domicile", labels)
+        self.assertIn("Domicile - Branch", labels)
+
+    def test_select_origin_branch_code_and_map_json(self):
+        mx, state = self._mx_state()
+        response = QuoteResponse(
+            quote_id="drop",
+            services=[
+                QuoteService(
+                    service_id="estafeta:drop",
+                    envia_service_id=11,
+                    carrier="estafeta",
+                    carrier_name="Estafeta",
+                    service_name="DropOff",
+                    price=7.5,
+                    currency=self.order.currency_id.name,
+                    drop_off=1,
+                ),
+            ],
+        )
+        wizard = self.env["envia.quote.wizard"].with_context(
+            envia_skip_branch_autoload=True,
+            envia_skip_auto_quote=True,
+        ).create(
+            {
+                "sale_order_id": self.order.id,
+                "origin_partner_id": self.partner.id,
+                "destination_partner_id": self.partner.id,
+                "origin_street": "Padre Mier",
+                "origin_city": "Monterrey",
+                "origin_postal_code": "64000",
+                "origin_country_id": mx.id,
+                "origin_state_id": state.id,
+                "destination_street": "Insurgentes",
+                "destination_city": "CDMX",
+                "destination_postal_code": "01000",
+                "destination_country_id": mx.id,
+                "destination_state_id": state.id,
+                "weight": 1.0,
+                "content": "Test",
+            }
+        )
+        with patch(
+            "odoo.addons.envia.wizards.envia_quote_wizard.get_envia_adapter"
+        ) as get_adapter:
+            get_adapter.return_value.quote.return_value = response
+            with patch.object(
+                type(wizard), "_load_origin_branches_for_rate", return_value=None
+            ):
+                wizard.action_get_quote(clear_branch_lines=False)
+                wizard.action_select_service_rate(service_id="estafeta:drop")
+        self.assertTrue(wizard.show_origin_branch_picker)
+        self.assertFalse(wizard.show_destination_branch_picker)
+        self.env["envia.quote.wizard.branch"].create(
+            [
+                {
+                    "wizard_id": wizard.id,
+                    "side": "origin",
+                    "name": "Near",
+                    "branch_code": "N1",
+                    "carrier": "estafeta",
+                    "latitude": 25.6,
+                    "longitude": -100.3,
+                },
+                {
+                    "wizard_id": wizard.id,
+                    "side": "origin",
+                    "name": "Far",
+                    "branch_code": "F2",
+                    "carrier": "estafeta",
+                    "latitude": 25.7,
+                    "longitude": -100.4,
+                },
+            ]
+        )
+        wizard.action_select_origin_branch_code("F2")
+        self.assertEqual(
+            wizard.origin_branch_line_ids.filtered("is_selected").branch_code, "F2"
+        )
+        import json
+
+        points = json.loads(wizard.origin_branch_map_json)
+        self.assertEqual(len(points), 2)
+        self.assertTrue(next(p for p in points if p["code"] == "F2")["selected"])
+        self.assertEqual(next(p for p in points if p["code"] == "F2")["latitude"], 25.7)
+
+    def test_origin_map_json_drops_null_island_coords(self):
+        mx, state = self._mx_state()
+        response = QuoteResponse(
+            quote_id="drop0",
+            services=[
+                QuoteService(
+                    service_id="estafeta:drop0",
+                    envia_service_id=13,
+                    carrier="estafeta",
+                    carrier_name="Estafeta",
+                    service_name="DropOff",
+                    price=7.0,
+                    currency=self.order.currency_id.name,
+                    drop_off=1,
+                ),
+            ],
+        )
+        wizard = self.env["envia.quote.wizard"].with_context(
+            envia_skip_branch_autoload=True,
+            envia_skip_auto_quote=True,
+        ).create(
+            {
+                "sale_order_id": self.order.id,
+                "origin_partner_id": self.partner.id,
+                "destination_partner_id": self.partner.id,
+                "origin_street": "Padre Mier",
+                "origin_city": "Monterrey",
+                "origin_postal_code": "64000",
+                "origin_country_id": mx.id,
+                "origin_state_id": state.id,
+                "destination_street": "Insurgentes",
+                "destination_city": "CDMX",
+                "destination_postal_code": "01000",
+                "destination_country_id": mx.id,
+                "destination_state_id": state.id,
+                "weight": 1.0,
+                "content": "Test",
+            }
+        )
+        with patch(
+            "odoo.addons.envia.wizards.envia_quote_wizard.get_envia_adapter"
+        ) as get_adapter:
+            get_adapter.return_value.quote.return_value = response
+            with patch.object(
+                type(wizard), "_load_origin_branches_for_rate", return_value=None
+            ):
+                wizard.action_get_quote(clear_branch_lines=False)
+                wizard.action_select_service_rate(service_id="estafeta:drop0")
+        self.assertTrue(wizard.show_origin_branch_picker)
+        self.env["envia.quote.wizard.branch"].create(
+            {
+                "wizard_id": wizard.id,
+                "side": "origin",
+                "name": "No coords",
+                "branch_code": "Z0",
+                "carrier": "estafeta",
+                "latitude": 0.0,
+                "longitude": 0.0,
+            }
+        )
+        import json
+
+        points = json.loads(wizard.origin_branch_map_json)
+        self.assertEqual(len(points), 1)
+        self.assertIsNone(points[0]["latitude"])
+        self.assertIsNone(points[0]["longitude"])
+
+    def test_select_destination_branch_code_map(self):
+        mx, state = self._mx_state()
+        response = QuoteResponse(
+            quote_id="pickup",
+            services=[
+                QuoteService(
+                    service_id="estafeta:pickup",
+                    envia_service_id=12,
+                    carrier="estafeta",
+                    carrier_name="Estafeta",
+                    service_name="Pickup",
+                    price=6.5,
+                    currency=self.order.currency_id.name,
+                    drop_off=2,
+                ),
+            ],
+        )
+        wizard = self.env["envia.quote.wizard"].with_context(
+            envia_skip_branch_autoload=True,
+            envia_skip_auto_quote=True,
+        ).create(
+            {
+                "sale_order_id": self.order.id,
+                "origin_partner_id": self.partner.id,
+                "destination_partner_id": self.partner.id,
+                "origin_street": "Padre Mier",
+                "origin_city": "Monterrey",
+                "origin_postal_code": "64000",
+                "origin_country_id": mx.id,
+                "origin_state_id": state.id,
+                "destination_street": "Insurgentes",
+                "destination_city": "CDMX",
+                "destination_postal_code": "01000",
+                "destination_country_id": mx.id,
+                "destination_state_id": state.id,
+                "weight": 1.0,
+                "content": "Test",
+            }
+        )
+        with patch(
+            "odoo.addons.envia.wizards.envia_quote_wizard.get_envia_adapter"
+        ) as get_adapter:
+            get_adapter.return_value.quote.return_value = response
+            with patch.object(type(wizard), "_try_load_branch_side", return_value=False):
+                wizard.action_get_quote(clear_branch_lines=False)
+                wizard.action_select_service_rate(service_id="estafeta:pickup")
+        self.assertTrue(wizard.show_destination_branch_picker)
+        self.env["envia.quote.wizard.branch"].create(
+            {
+                "wizard_id": wizard.id,
+                "side": "destination",
+                "name": "CDMX 1",
+                "branch_code": "CD1",
+                "carrier": "estafeta",
+                "latitude": 19.4,
+                "longitude": -99.1,
+            }
+        )
+        wizard.action_select_destination_branch_code("CD1")
+        self.assertEqual(
+            wizard.destination_branch_line_ids.filtered("is_selected").branch_code, "CD1"
+        )
 
     def test_choose_delivery_carrier_create_recovers_missing_order_id(self):
         # Web client may omit invisible order_id after onchange; recover from context.
@@ -1029,6 +1336,54 @@ class TestEnviaDeliveryCarrier(TransactionCase):
         )
         self.assertEqual(len(wizard.service_line_ids), 2)
 
+    def test_select_drop_off_rate_keeps_sibling_service_lines(self):
+        """Rate-driven location types must not wipe rates (_on_route_type_changed)."""
+        wizard = self.env["envia.quote.wizard"].with_context(
+            envia_skip_branch_autoload=True,
+            envia_skip_auto_quote=True,
+        ).create(
+            {
+                "sale_order_id": self.order.id,
+                "origin_location_type": "address",
+                "destination_location_type": "address",
+                "origin_postal_code": "06600",
+                "destination_postal_code": "44100",
+                "weight": 1.0,
+                "content": "Test",
+            }
+        )
+        self.env["envia.quote.wizard.service"].create(
+            [
+                {
+                    "wizard_id": wizard.id,
+                    "service_id": "fedex:door",
+                    "carrier": "fedex",
+                    "service_name": "Door",
+                    "price": 100.0,
+                    "drop_off": 0,
+                },
+                {
+                    "wizard_id": wizard.id,
+                    "service_id": "estafeta:drop",
+                    "carrier": "estafeta",
+                    "service_name": "DropOff",
+                    "price": 90.0,
+                    "drop_off": 1,
+                },
+            ]
+        )
+        with patch.object(
+            type(wizard), "_load_origin_branches_for_rate", return_value=None
+        ):
+            wizard.action_select_service_rate(service_id="estafeta:drop")
+        self.assertEqual(len(wizard.service_line_ids), 2)
+        self.assertEqual(
+            wizard.service_line_ids.filtered("is_selected").service_id,
+            "estafeta:drop",
+        )
+        self.assertEqual(wizard.origin_location_type, "branch")
+        self.assertEqual(wizard.destination_location_type, "address")
+
     def test_update_restore_keeps_rates_when_order_weight_differs(self):
         quote = self.env["envia.quote"].create(
             {
@@ -1379,7 +1734,7 @@ class TestEnviaDeliveryCarrier(TransactionCase):
         self.assertEqual(len(wizard.service_line_ids), 1)
 
     def test_confirm_with_origin_pickup_without_origin_branch(self):
-        # Origin=branch does not require selecting a concrete origin branch code.
+        # dropOff 1 requires a concrete origin branch before confirm / label/create.
         response = QuoteResponse(
             quote_id="test",
             services=[
@@ -1413,14 +1768,12 @@ class TestEnviaDeliveryCarrier(TransactionCase):
         ) as get_adapter:
             get_adapter.return_value.quote.return_value = response
             wizard.update_price()
-        wizard.with_context(service_id="fedex:1").action_envia_select_service()
-        with patch(
-            "odoo.addons.envia.wizards.envia_quote_wizard.get_envia_adapter"
-        ) as get_adapter:
-            get_adapter.return_value.quote.return_value = response
+        with patch.object(
+            type(quote_wizard), "_load_origin_branches_for_rate", return_value=None
+        ):
+            wizard.with_context(service_id="fedex:1").action_envia_select_service()
+        with self.assertRaises(UserError):
             wizard.button_confirm()
-        self.assertTrue(self.order.order_line.filtered("is_delivery"))
-        self.assertFalse(wizard.envia_wizard_id.quote_id.origin_branch_code)
 
     def test_confirm_with_destination_branch_persists_branch_code(self):
         mx, state = self._mx_state()
@@ -1919,12 +2272,17 @@ class TestEnviaDeliveryCarrier(TransactionCase):
                 ]
             },
         }
+        def _post_side_effect(path, payload=None, *args, **kwargs):
+            if "bulk/cancel" in str(path):
+                return {"success": True}
+            return label_body
+
         with patch(
             "odoo.addons.envia.services.envia_client.EnviaClient._delete",
             return_value={"success": True},
         ) as mock_delete, patch(
             "odoo.addons.envia.services.envia_official_adapter.EnviaClient._post",
-            return_value=label_body,
+            side_effect=_post_side_effect,
         ) as mock_post:
             result = self.carrier.with_context(
                 envia_skip_dedicated_cursor=True,
@@ -1936,10 +2294,21 @@ class TestEnviaDeliveryCarrier(TransactionCase):
             "orders/34165/110331/fulfillment/order-shipments",
         )
         self.assertEqual(delete_payload, {"shipment_id": 179909})
-        mock_post.assert_called_once()
-        self.assertEqual(mock_post.call_args.args[0], "label/create/34165")
+        cancel_calls = [
+            call
+            for call in mock_post.call_args_list
+            if "bulk/cancel" in str(call.args[0])
+        ]
+        self.assertEqual(len(cancel_calls), 1)
+        self.assertEqual(cancel_calls[0].args[1], {"shipments": [179909]})
+        create_calls = [
+            call
+            for call in mock_post.call_args_list
+            if str(call.args[0]).startswith("label/create/")
+        ]
+        self.assertEqual(len(create_calls), 1)
         self.assertEqual(
-            mock_post.call_args.args[1],
+            create_calls[0].args[1],
             {"id": str(self.order.id), "service_id": 442},
         )
         self.assertEqual(result[0]["tracking_number"], "1ZNEW")
@@ -2010,12 +2379,17 @@ class TestEnviaDeliveryCarrier(TransactionCase):
                 ]
             },
         }
+        def _post_side_effect(path, payload=None, *args, **kwargs):
+            if "bulk/cancel" in str(path):
+                return {"success": True}
+            return label_body
+
         with patch(
             "odoo.addons.envia.services.envia_client.EnviaClient._delete",
             return_value={"success": True},
         ) as mock_delete, patch(
             "odoo.addons.envia.services.envia_official_adapter.EnviaClient._post",
-            return_value=label_body,
+            side_effect=_post_side_effect,
         ):
             self.carrier.with_context(
                 envia_skip_dedicated_cursor=True,
@@ -2098,10 +2472,14 @@ class TestEnviaDeliveryCarrier(TransactionCase):
         )
         picking.envia_label_url = "https://example.com/old.pdf"
         with patch(
+            "odoo.addons.envia.services.envia_client.EnviaClient._post",
+            return_value={"success": True},
+        ) as mock_post, patch(
             "odoo.addons.envia.services.envia_client.EnviaClient._delete",
             return_value={"success": True},
         ) as mock_delete:
             self.carrier.envia_cancel_shipment(picking)
+        # Unlink first, then cancel (order matters for next label/create packages).
         mock_delete.assert_called_once()
         path, payload = mock_delete.call_args.args[:2]
         self.assertEqual(
@@ -2109,6 +2487,9 @@ class TestEnviaDeliveryCarrier(TransactionCase):
             "orders/34165/110342/fulfillment/order-shipments",
         )
         self.assertEqual(payload, {"shipment_id": 40772217})
+        mock_post.assert_called_once()
+        self.assertEqual(mock_post.call_args.args[0], "shipments/bulk/cancel")
+        self.assertEqual(mock_post.call_args.args[1], {"shipments": [40772217]})
         self.assertEqual(shipment.state, "replaced")
         self.assertFalse(picking.carrier_tracking_ref)
         self.assertFalse(picking.envia_label_url)
@@ -2132,6 +2513,9 @@ class TestEnviaDeliveryCarrier(TransactionCase):
         self.assertTrue(picking.envia_can_replace_label)
         self.assertFalse(picking.envia_can_generate_label)
         with patch(
+            "odoo.addons.envia.services.envia_client.EnviaClient._post",
+            return_value={"success": True},
+        ) as mock_post, patch(
             "odoo.addons.envia.services.envia_client.EnviaClient._delete",
             return_value={"success": True},
         ) as mock_delete:
@@ -2143,6 +2527,9 @@ class TestEnviaDeliveryCarrier(TransactionCase):
             "orders/34165/110331/fulfillment/order-shipments",
         )
         self.assertEqual(payload, {"shipment_id": 179909})
+        mock_post.assert_called_once()
+        self.assertEqual(mock_post.call_args.args[0], "shipments/bulk/cancel")
+        self.assertEqual(mock_post.call_args.args[1], {"shipments": [179909]})
         self.assertEqual(shipment.state, "replaced")
         self.assertFalse(picking.carrier_tracking_ref)
         self.assertEqual(action["res_model"], "envia.quote.wizard")
@@ -2181,6 +2568,9 @@ class TestEnviaDeliveryCarrier(TransactionCase):
             }
         )
         with patch(
+            "odoo.addons.envia.services.envia_client.EnviaClient._post",
+            return_value={"success": True},
+        ), patch(
             "odoo.addons.envia.services.envia_client.EnviaClient._delete",
             return_value={"success": True},
         ):

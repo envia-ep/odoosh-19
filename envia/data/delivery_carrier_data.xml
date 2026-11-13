@@ -7,5 +7,7 @@
         <field name="sequence">2</field>
         <field name="product_id" ref="envia.product_envia_shipping"/>
         <field name="carrier_description">Live shipping rates from Envia.com.</field>
+        <!-- Odoo hides payment.provider COD unless the selected carrier allows it. -->
+        <field name="allow_cash_on_delivery" eval="True"/>
     </record>
 </odoo>

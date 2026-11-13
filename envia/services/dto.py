@@ -22,6 +22,8 @@ class QuoteRequest:
     currency: str = "MXN"
     carriers: str = "all"
     expected_drop_off: int | None = None
+    # Sales lists every dropOff; website keeps route filtering.
+    filter_by_route: bool = True
     additional_services: list[AdditionalService] = field(default_factory=list)
     origin_contact: "Contact | None" = None
     destination_contact: "Contact | None" = None
@@ -41,6 +43,7 @@ class QuoteService:
     envia_service_id: int | None = None
     estimated_delivery_days: int | None = None
     drop_off: int | None = None
+    cash_on_delivery_amount: float | None = None
     max_weight: float | None = None
     restrictions: list[str] = field(default_factory=list)
     additional_services_available: list[str] = field(default_factory=list)
@@ -102,6 +105,8 @@ class CreateShipmentRequest:
     package_weight: float | None = None
     package_content: str | None = None
     weight_unit: str | None = None
+    customs_settings: dict[str, Any] | None = None
+    customs_items: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass

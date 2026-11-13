@@ -11,6 +11,7 @@ from odoo.addons.envia.const import (
     get_envia_checkout_settings_url,
     get_envia_dashboard_embed_url,
     get_envia_ecommerce_embed_base_url,
+    get_envia_products_edit_bulk_url,
     get_envia_shipping_rules_settings_url,
 )
 
@@ -149,3 +150,29 @@ class TestEnviaDashboardEmbed(TransactionCase):
             "https://shipping.envia.com/settings/integrations/ecommerce/125410"
             "#settings-shipping-rules",
         )
+
+    def test_products_edit_bulk_url_and_dashboard_action(self):
+        company = self.env.company
+        company.envia_oauth_connected = True
+        company.envia_shop_id = "125410"
+        company.envia_company_id = "99"
+        self.env["ir.config_parameter"].sudo().set_param(
+            "web.base.url", "https://shop.example.com"
+        )
+        with patch(
+            "odoo.addons.envia.services.envia_config.resolve_envia_environment",
+            return_value="production",
+        ):
+            staff_url = get_envia_products_edit_bulk_url("125410")
+            action = company.action_envia_open_products_edit_bulk()
+            dashboard = company.action_envia_products_edit_bulk_dashboard()
+        expected = "https://shipping.envia.com/products/edit-bulk?shop_id=125410"
+        self.assertEqual(staff_url, expected)
+        dashboard_action = self.env.ref("envia.action_envia_products_edit_bulk_dashboard")
+        self.assertEqual(action["type"], "ir.actions.act_url")
+        self.assertEqual(
+            action["url"],
+            f"https://shop.example.com/web#action={dashboard_action.id}&cids={company.id}",
+        )
+        self.assertEqual(action["target"], "new")
+        self.assertEqual(dashboard["params"]["url"], expected)

@@ -166,145 +166,13 @@ class EnviaClient:
 
     @staticmethod
     def humanize_api_message(message) -> str:
-        """Map known Envia label/create phrases to actionable UserError text."""
+        """Return Envia API text as-is (no UX rewrite; sandbox and production)."""
         if isinstance(message, (list, tuple)):
             parts = [
-                EnviaClient.humanize_api_message(part)
-                for part in message
-                if part not in (None, False, "")
+                str(part) for part in message if part not in (None, False, "")
             ]
             return "\n".join(parts) if parts else ""
-
-        text = str(message or "").strip()
-        folded = text.casefold()
-
-        # Longer / more specific phrases first.
-        if "order not found and could not be saved" in folded:
-            return _(
-                "Envia found the order in the store but could not sync it. "
-                "Check multi-destination or marketplace settings, then try again."
-            )
-        if "unexpected error during order creation" in folded:
-            return _(
-                "Envia could not create the order record. Try again; "
-                "if it persists, contact Envia support."
-            )
-        if "no available packages with quoted service" in folded:
-            return _(
-                "No packages are available for the quoted service "
-                "(already labeled, or missing a rate). Get a new quote or "
-                "unlink existing Envia shipments, then try again."
-            )
-        if "carrier print options not found" in folded or (
-            "carrier print option not found" in folded
-        ):
-            return _(
-                "Envia has no print options for this shipping service. "
-                "Select another rate and try again."
-            )
-        if "feature not available for this ecommerce" in folded:
-            return _(
-                "Label generation is not available for this ecommerce "
-                "integration. Contact Envia support."
-            )
-        if "feature not enabled" in folded:
-            return _(
-                'Turn on "Label generation from the store" in Envia for this '
-                "shop, then try again."
-            )
-        if "user token expired" in folded:
-            return _(
-                "Your Envia session expired. Open Settings > Envia Shipping "
-                "and reconnect."
-            )
-        if "user token is invalid" in folded:
-            return _(
-                "Invalid Envia API token. Check Settings > Envia Shipping "
-                "and reconnect."
-            )
-        if "shop not found" in folded:
-            return _(
-                "Envia shop was not found. Reconnect the Envia.com "
-                "integration in Settings."
-            )
-        if "duplicated order" in folded:
-            return _(
-                "This order already exists in Envia. Wait a moment and try "
-                "again, or open the order in Envia Shipping."
-            )
-        if "order ignored" in folded:
-            return _(
-                "Envia ignored this order (shipping method, logistics, or "
-                "marketplace rules). Check the order shipping method."
-            )
-        if "invalid order" in folded:
-            return _(
-                "Envia rejected this order as incomplete (address or "
-                "order number). Fix the order data and try again."
-            )
-        if "order not found" in folded:
-            return _(
-                "Envia could not find this order in the store. Confirm the "
-                "sales order is synced, then try again."
-            )
-        if "order already fulfilled" in folded:
-            return _(
-                "This order is already fulfilled on Envia. Unlink the "
-                "existing label in Envia Shipping, then try again."
-            )
-        if "currency not found" in folded:
-            return _(
-                "Envia shop has no currency configured. Set the shop "
-                "currency in Envia and try again."
-            )
-        if "label generation failed" in folded:
-            return _(
-                "The carrier could not generate the label. Check address, "
-                "package, and service, then try again."
-            )
-        if (
-            "invalid request payload" in folded
-            or "invalid request params" in folded
-            or "body data is invalid" in folded
-        ):
-            return _(
-                "The label request sent to Envia was invalid. Get a new "
-                "quote and try Generate again."
-            )
-        if folded in {"invalid operation.", "invalid operation"}:
-            return _(
-                "Envia could not complete this operation. Try again or "
-                "reconnect the integration."
-            )
-        if (
-            "not enough money" in folded
-            or "saldo insuficiente" in folded
-            or ("insufficient" in folded and "balance" in folded)
-        ):
-            return _(
-                "Your Envia account does not have enough balance to create this "
-                "label. Add funds at Envia.com and try again."
-            )
-        if "cannot read properties of undefined" in folded or "cannot read property" in folded:
-            return _(
-                "Envia could not read incomplete order data (name, quote, or "
-                "addresses). Fix the order and try again."
-            )
-        if "request failed with status code" in folded:
-            return _(
-                "The carrier rejected the label request. Check address, "
-                "package limits, phone, and service availability, then try again."
-            )
-        if "timeout" in folded and "exceeded" in folded:
-            return _(
-                "Envia or the carrier timed out. Wait a moment and try again."
-            )
-        if "econnrefused" in folded or "connection refused" in folded:
-            return _(
-                "Could not reach Envia or the carrier (network). Try again "
-                "in a moment."
-            )
-        return text
+        return str(message or "").strip()
 
     @staticmethod
     def _response_error_message(body, response) -> str:
@@ -472,6 +340,35 @@ class EnviaClient:
             branches = data if isinstance(data, list) else []
         return self.refine_branches_near_zip(branches, zipcode)
 
+    def post_origin_branches(
+        self,
+        *,
+        route: str,
+        queries_base_url: str,
+        carrier_base_url: str,
+        carrier: str,
+        country_code: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | list[Any]:
+        """Origin drop-off branches. Destination pickup stays on get_branches."""
+        if route == "oxxo":
+            return self._post(
+                "branches/estafeta/oxxo",
+                payload,
+                base_url=queries_base_url,
+            )
+        if route == "address":
+            return self._post(
+                "ship/branchesbyaddress",
+                payload,
+                base_url=carrier_base_url,
+            )
+        return self._post(
+            f"branches/{carrier}/{country_code}",
+            payload,
+            base_url=queries_base_url,
+        )
+
     @staticmethod
     def refine_branches_near_zip(
         branches: list[dict[str, Any]],
@@ -558,6 +455,26 @@ class EnviaClient:
                 % {"status": response.status_code, "message": message}
             )
         return body
+
+    @staticmethod
+    def get_bol_export_reasons(
+        queries_base_url: str,
+        *,
+        timeout: int = 60,
+    ) -> list[dict[str, str]]:
+        """Fetch Envia Queries ``/bol-export-reasons``; local fallback on failure."""
+        from .international import fallback_export_reasons, parse_export_reasons_body
+
+        url_base = queries_base_url.rstrip("/") + "/"
+        try:
+            body = EnviaClient._public_get_json(
+                f"{url_base}bol-export-reasons",
+                timeout=timeout,
+            )
+        except (UserError, EnviaApiError):
+            return fallback_export_reasons()
+        reasons = parse_export_reasons_body(body)
+        return reasons or fallback_export_reasons()
 
     @staticmethod
     def get_generic_form(

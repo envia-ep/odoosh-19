@@ -269,7 +269,7 @@ class TestEnviaClient(TransactionCase):
             {"shipment_id": 179909},
         )
 
-    def test_label_create_feature_not_enabled_asks_to_enable_in_envia(self):
+    def test_label_create_shows_raw_envia_message(self):
         with self.assertRaises(UserError) as error:
             EnviaOfficialAdapter._parse_label_create_response(
                 {
@@ -278,9 +278,8 @@ class TestEnviaClient(TransactionCase):
                 }
             )
         message = str(error.exception)
-        self.assertIn("Label generation from the store", message)
-        self.assertIn("Envia", message)
-        self.assertNotIn("Feature not enabled", message)
+        self.assertIn("Feature not enabled for this shop.", message)
+        self.assertIn("Envia raw error", message)
 
     def test_label_create_feature_not_enabled_redirects_to_shipping_rules(self):
         from unittest.mock import MagicMock, patch
@@ -305,7 +304,37 @@ class TestEnviaClient(TransactionCase):
             with self.assertRaises(RedirectWarning) as error:
                 adapter.create_label_for_odoo_order(42, service_id=1)
         self.assertEqual(error.exception.args[1], action.id)
-        self.assertIn("Label generation from the store", str(error.exception.args[0]))
+        self.assertIn("Feature not enabled for this shop.", str(error.exception.args[0]))
+
+    def test_label_create_missing_product_code_redirects_to_edit_bulk(self):
+        from unittest.mock import MagicMock, patch
+
+        from odoo.addons.envia.services.envia_official_adapter import EnviaOfficialAdapter
+        from odoo.exceptions import RedirectWarning
+
+        action = self.env.ref("envia.action_envia_open_products_edit_bulk")
+        adapter = EnviaOfficialAdapter(
+            MagicMock(token="token"),
+            shop_id="133245",
+            products_edit_bulk_action_id=action.id,
+        )
+        with patch(
+            "odoo.addons.envia.services.envia_official_adapter.EnviaClient._post",
+            return_value={
+                "status": False,
+                "message": (
+                    'International generate requires items.productCode '
+                    '(HS code). Missing for "Jean Jacket"'
+                ),
+            },
+        ):
+            with self.assertRaises(RedirectWarning) as error:
+                adapter.create_label_for_odoo_order(42, service_id=1)
+        self.assertEqual(error.exception.args[1], action.id)
+        message = str(error.exception.args[0])
+        self.assertIn("Jean Jacket", message)
+        self.assertIn("HS code", message.casefold())
+        self.assertNotIn("Envia raw error", message)
 
     def test_label_create_feature_not_enabled_redirects_with_spanish_message(self):
         """UI language ES humanizes first; redirect must still fire."""
@@ -359,7 +388,7 @@ class TestEnviaClient(TransactionCase):
             _path, payload = mock_post.call_args.args[:2]
             self.assertEqual(payload, {"id": "42", "service_id": 442})
 
-    def test_label_create_not_enough_money_asks_to_add_funds(self):
+    def test_label_create_not_enough_money_shows_raw(self):
         with self.assertRaises(UserError) as error:
             EnviaOfficialAdapter._parse_label_create_response(
                 {
@@ -368,10 +397,8 @@ class TestEnviaClient(TransactionCase):
                 }
             )
         message = str(error.exception)
-        self.assertIn("enough balance", message.casefold())
-        self.assertIn("Envia.com", message)
-        self.assertNotIn("Not Enough money", message)
-        self.assertNotIn("did not generate a label", message.casefold())
+        self.assertIn("Not Enough money", message)
+        self.assertIn("Envia raw error", message)
 
     def test_label_create_errors_array_already_fulfilled(self):
         """Business validation uses ``errors``, not ``message``."""
@@ -383,128 +410,33 @@ class TestEnviaClient(TransactionCase):
                 }
             )
         message = str(error.exception)
-        self.assertIn("already fulfilled", message.casefold())
-        self.assertNotIn("did not generate a label", message.casefold())
-        self.assertNotIn("Order already fulfilled", message)
+        self.assertIn("Order already fulfilled", message)
+        self.assertIn("Envia raw error", message)
 
-    def test_label_create_known_api_messages_are_humanized(self):
+    def test_label_create_keeps_raw_api_messages(self):
         cases = (
-            (
-                "Shop not found.",
-                ("shop", "reconnect"),
-                ("Shop not found",),
-            ),
-            (
-                "Feature not available for this ecommerce.",
-                ("not available", "ecommerce"),
-                ("Feature not available",),
-            ),
-            (
-                "Duplicated Order.",
-                ("already exists",),
-                ("Duplicated Order",),
-            ),
-            (
-                "Order ignored.",
-                ("ignored", "shipping method"),
-                ("Order ignored",),
-            ),
-            (
-                "Invalid Order.",
-                ("incomplete", "order"),
-                ("Invalid Order",),
-            ),
-            (
-                "Order not found.",
-                ("could not find", "order"),
-                ("Order not found.",),
-            ),
-            (
-                "Order not found and could not be saved.",
-                ("could not sync",),
-                ("could not be saved",),
-            ),
-            (
-                "Unexpected error during order creation.",
-                ("could not create", "order"),
-                ("Unexpected error during order creation",),
-            ),
-            (
-                "No available packages with quoted service",
-                ("packages", "quote"),
-                ("No available packages",),
-            ),
-            (
-                "Currency not found",
-                ("currency",),
-                ("Currency not found",),
-            ),
-            (
-                "Carrier print options not found",
-                ("print", "service"),
-                ("Carrier print options not found",),
-            ),
-            (
-                "Carrier print option not found",
-                ("print", "service"),
-                ("Carrier print option not found",),
-            ),
-            (
-                "Label generation failed.",
-                ("carrier", "label"),
-                ("Label generation failed",),
-            ),
-            (
-                "User token expired.",
-                ("expired", "reconnect"),
-                ("User token expired",),
-            ),
-            (
-                "User token is invalid.",
-                ("invalid", "token"),
-                ("User token is invalid",),
-            ),
-            (
-                "Invalid operation.",
-                ("could not complete",),
-                ("Invalid operation",),
-            ),
-            (
-                "Invalid request payload/params input",
-                ("request", "invalid"),
-                ("Invalid request payload",),
-            ),
-            (
-                "424 - The body data is invalid. Please check the docs",
-                ("request", "invalid", "quote"),
-                ("body data is invalid", "Please check the docs"),
-            ),
-            (
-                "timeout of 60000ms exceeded",
-                ("timed out", "try again"),
-                ("timeout of 60000ms",),
-            ),
-            (
-                "Request failed with status code 400",
-                ("carrier", "rejected"),
-                ("Request failed with status code",),
-            ),
-            (
-                "Cannot read properties of undefined (reading 'name')",
-                ("incomplete", "order"),
-                ("Cannot read properties",),
-            ),
+            "Shop not found.",
+            "Feature not available for this ecommerce.",
+            "Duplicated Order.",
+            "Order ignored.",
+            "Invalid Order.",
+            "Order not found.",
+            "Order not found and could not be saved.",
+            "Unexpected error during order creation.",
+            "No available packages with quoted service",
+            "Currency not found",
+            "Label generation failed.",
+            "User token expired.",
+            "Invalid request payload/params input",
+            "timeout of 60000ms exceeded",
+            "Request failed with status code 400",
         )
-        for api_message, must_include, must_exclude in cases:
+        for api_message in cases:
             with self.subTest(api_message=api_message):
                 with self.assertRaises(UserError) as error:
                     EnviaOfficialAdapter._parse_label_create_response(
                         {"status": False, "message": api_message}
                     )
                 text = str(error.exception)
-                folded = text.casefold()
-                for needle in must_include:
-                    self.assertIn(needle.casefold(), folded, text)
-                for needle in must_exclude:
-                    self.assertNotIn(needle, text)
-                self.assertNotIn("did not generate a label", folded)
+                self.assertIn(api_message, text)
+                self.assertIn("Envia raw error", text)

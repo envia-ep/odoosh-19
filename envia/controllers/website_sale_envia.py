@@ -38,6 +38,7 @@ class WebsiteSaleEnviaDelivery(Delivery):
         if not order:
             raise ValidationError(_("Your cart is empty."))
         order_sudo = order.sudo()
+        payload.pop("destination_tax_id", None)
         # Do not call _set_delivery_method here: it re-rates cheapest and
         # would overwrite the customer selection until sync runs.
         service = WebsitePickupService(request.env)

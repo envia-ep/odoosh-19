@@ -190,6 +190,13 @@ class StockPicking(models.Model):
                 _("Open an outgoing delivery that is ready or done to generate a label.")
             )
         if self._envia_has_active_label():
+            # Tracking may exist from Envia XML-RPC while envia.shipment was
+            # rolled back (serialization retry). Recover local bookkeeping.
+            if (
+                not self._envia_active_shipments()
+                and (self.carrier_tracking_ref or "").strip()
+            ):
+                self.carrier_id._envia_recover_shipping_after_tracking(self)
             shipment = self._envia_active_shipments()[:1]
             self._envia_ensure_chatter_label(
                 label_url=shipment.label_url or self.envia_label_url,
@@ -197,8 +204,30 @@ class StockPicking(models.Model):
                 or self.carrier_tracking_ref,
             )
             return True
-        if not self._get_active_envia_quote():
+        quote = self._get_active_envia_quote()
+        if not quote:
             return self.action_open_envia_quote_wizard()
+        # International: collect tax IDs / export reason at generate time.
+        sale = self.sale_id
+        if (
+            sale
+            and sale._envia_is_international(quote)
+            and not self.env.context.get("envia_customs_confirmed")
+        ):
+            return {
+                "type": "ir.actions.act_window",
+                "name": _("Generate Envia Label"),
+                "res_model": "envia.create.shipment.wizard",
+                "view_mode": "form",
+                "views": [(False, "form")],
+                "target": "new",
+                "context": {
+                    "default_quote_id": quote.id,
+                    "default_sale_order_id": sale.id,
+                    "default_picking_id": self.id,
+                    "dialog_size": "medium",
+                },
+            }
         return self.send_to_shipper()
 
     def _envia_has_unlink_targets(self):
@@ -220,7 +249,7 @@ class StockPicking(models.Model):
         )
 
     def action_envia_replace_label(self):
-        """Clear local label link and reopen rates; Envia unlink runs on Generate."""
+        """Cancel + unlink prior Envia label, clear local link, reopen rates."""
         self.ensure_one()
         if self.carrier_id.delivery_type != "envia":
             raise UserError(_("This transfer is not using Envia.com."))
@@ -237,6 +266,7 @@ class StockPicking(models.Model):
                     "and generate again from Odoo."
                 )
             )
+        # DELETE order-shipments first, then bulk/cancel carrier label.
         self._envia_unlink_label()
         quotes = self.envia_quote_ids
         if self.sale_id:

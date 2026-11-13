@@ -134,6 +134,12 @@ class ChooseDeliveryCarrier(models.TransientModel):
     envia_destination_selected_branch_label = fields.Char(
         related="envia_wizard_id.destination_selected_branch_label",
     )
+    envia_origin_branch_map_json = fields.Text(
+        related="envia_wizard_id.origin_branch_map_json",
+    )
+    envia_destination_branch_map_json = fields.Text(
+        related="envia_wizard_id.destination_branch_map_json",
+    )
     envia_service_line_ids = fields.One2many(related="envia_wizard_id.service_line_ids")
     envia_rates_feedback = fields.Char(related="envia_wizard_id.rates_feedback")
     envia_weight_warning = fields.Char(related="envia_wizard_id.weight_warning")
@@ -142,6 +148,9 @@ class ChooseDeliveryCarrier(models.TransientModel):
     )
     envia_package_preview = fields.Text(related="envia_wizard_id.envia_package_preview")
     envia_package_sync_hint = fields.Char(related="envia_wizard_id.envia_package_sync_hint")
+    envia_destination_address_preview = fields.Char(
+        compute="_compute_envia_destination_address_preview",
+    )
     envia_enable_labels = fields.Boolean(related="order_id.company_id.envia_enable_labels")
     envia_show_quote_archive = fields.Boolean(
         related="order_id.company_id.envia_show_quote_archive"
@@ -155,6 +164,42 @@ class ChooseDeliveryCarrier(models.TransientModel):
             order = wizard._resolve_order()
             company = order.company_id if order else self.env.company
             wizard.envia_enable_branches = company.envia_enable_branches
+
+    @api.depends(
+        "envia_destination_street",
+        "envia_destination_postal_code",
+        "envia_destination_city",
+        "envia_destination_state_id",
+        "envia_destination_country_id",
+    )
+    def _compute_envia_destination_address_preview(self):
+        for wizard in self:
+            parts = [
+                wizard.envia_destination_street,
+                " ".join(
+                    filter(
+                        None,
+                        [
+                            wizard.envia_destination_postal_code,
+                            wizard.envia_destination_city,
+                        ],
+                    )
+                ),
+                ", ".join(
+                    filter(
+                        None,
+                        [
+                            wizard.envia_destination_state_id.display_name
+                            if wizard.envia_destination_state_id
+                            else False,
+                            wizard.envia_destination_country_id.name
+                            if wizard.envia_destination_country_id
+                            else False,
+                        ],
+                    )
+                ),
+            ]
+            wizard.envia_destination_address_preview = " · ".join(filter(None, parts)) or False
 
     def _should_default_envia_carrier(self, order):
         envia_carrier = order._get_envia_delivery_carrier()
@@ -516,21 +561,11 @@ class ChooseDeliveryCarrier(models.TransientModel):
         service_id = service_id or self.env.context.get("service_id")
         if not service_id or not self.envia_wizard_id:
             return False
-        quote_wizard = self.envia_wizard_id
-        previous = quote_wizard.service_line_ids.filtered("is_selected")[:1]
-        previous_carrier = previous.carrier if previous else False
-        quote_wizard.action_select_service_rate(service_id=service_id)
+        self.envia_wizard_id.action_select_service_rate(service_id=service_id)
         self._sync_delivery_price_from_envia()
-        selected = quote_wizard.service_line_ids.filtered("is_selected")[:1]
-        # Reopen only when the pickup carrier changes (branch list must refresh).
-        if (
-            quote_wizard._uses_branch_route()
-            and selected
-            and previous_carrier
-            and previous_carrier != selected.carrier
-        ):
-            return self._envia_reopen_action()
-        return False
+        # Always remount: load()/noop leaves the origin Leaflet section unmounted
+        # on the first rate click inside the same dialog.
+        return self._envia_reopen_action()
 
     def action_envia_sync_price(self):
         self.ensure_one()
@@ -584,6 +619,16 @@ class ChooseDeliveryCarrier(models.TransientModel):
         self._ensure_envia_wizard()
         self.envia_wizard_id.action_load_destination_branches()
         return self._envia_reopen_action()
+
+    def action_envia_select_origin_branch_code(self, code):
+        self.ensure_one()
+        self._ensure_envia_wizard()
+        return self.envia_wizard_id.action_select_origin_branch_code(code)
+
+    def action_envia_select_destination_branch_code(self, code):
+        self.ensure_one()
+        self._ensure_envia_wizard()
+        return self.envia_wizard_id.action_select_destination_branch_code(code)
 
     def button_confirm(self):
         self.ensure_one()

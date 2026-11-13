@@ -291,6 +291,9 @@ patch(Checkout.prototype, {
             const service = option.service
                 ? `<span class="o_envia_option_service">${option.service}</span>`
                 : "";
+            const codBadge = option.cod
+                ? `<span class="o_envia_option_cod" title="${_t("Cash on delivery")}">COD</span>`
+                : "";
             const checked = cheapest && option.id === cheapest.id ? "checked" : "";
             if (checked) {
                 li.classList.add("o_envia_option_selected");
@@ -301,7 +304,9 @@ patch(Checkout.prototype, {
                            name="o_envia_option" value="${option.id}" ${checked}/>
                     <span class="o_envia_option_body">
                         <span class="o_envia_option_header">
-                            <span class="o_envia_option_name">${option.name || ""}</span>
+                            <span class="o_envia_option_name">
+                                ${option.name || ""}${codBadge}
+                            </span>
                             <span class="o_envia_option_price">${price}</span>
                         </span>
                         ${address}
@@ -405,8 +410,11 @@ patch(Checkout.prototype, {
             const lng = Number(option.lng);
             const marker = Leaflet.marker([lat, lng]);
             marker.optionId = option.id;
+            const codLabel = option.cod
+                ? ` <span class="o_envia_option_cod">COD</span>`
+                : "";
             marker.bindPopup(
-                `<strong>${option.name || ""}</strong><br/>${option.address || ""}`,
+                `<strong>${option.name || ""}${codLabel}</strong><br/>${option.address || ""}`,
                 {
                     autoPan: true,
                     // Extra top padding keeps the popup fully inside the map (not over the rates list).

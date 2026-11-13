@@ -118,6 +118,8 @@ class EnviaShipment(models.Model):
             ) from error
         adapter = get_envia_adapter(self.company_id)
         queries_base_url = self.company_id._envia_get_queries_base_url()
+        # Unlink first (keeps shop-order packages intact for next label/create),
+        # then cancel the carrier label.
         try:
             adapter.unlink_order_shipment(
                 order_id,
@@ -137,6 +139,30 @@ class EnviaShipment(models.Model):
                 )
                 return False
             raise
+        try:
+            adapter.cancel_shipments(
+                [shipment_id],
+                queries_base_url=queries_base_url,
+            )
+        except (UserError, EnviaApiError) as error:
+            message = str(error.args[0] if error.args else error).casefold()
+            soft = (
+                "404" in message
+                or "not found" in message
+                or "cannot be found" in message
+                or "already cancel" in message
+                or "already cancelled" in message
+                or "no se puede cancelar" in message
+                or "cannot be cancelled" in message
+                or "cannot be canceled" in message
+            )
+            if not soft:
+                raise
+            _logger.warning(
+                "Envia bulk/cancel soft-skip for shipment %s: %s",
+                shipment_id,
+                error,
+            )
         if not (self.external_order_id or "").strip():
             self.external_order_id = str(order_id)
         return True
@@ -149,14 +175,8 @@ class EnviaShipment(models.Model):
         active._mark_replaced()
 
     def _cancel_on_envia(self):
-        """Deprecated: use Replace Envia Label (unlink + re-quote)."""
-        self.ensure_one()
-        raise UserError(
-            _(
-                "Envia labels are not cancelled from Odoo. "
-                "Use Replace Envia Label on the delivery to unlink and create a new one."
-            )
-        )
+        """Cancel + unlink on Envia, then mark inactive locally."""
+        self._unlink_on_envia()
 
     def action_open_label(self):
         self.ensure_one()

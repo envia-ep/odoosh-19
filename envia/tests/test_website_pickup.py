@@ -184,6 +184,102 @@ class TestWebsitePickupService(TransactionCase):
             ]
         }
 
+    def test_cart_cod_amount_excludes_delivery_lines(self):
+        line = self.order.order_line[0]
+        line.write({"price_unit": 500.0, "tax_ids": [(5, 0, 0)]})
+        self.env["sale.order.line"].create(
+            {
+                "order_id": self.order.id,
+                "name": "Delivery",
+                "product_id": self.carrier.product_id.id,
+                "product_uom_qty": 1.0,
+                "price_unit": 99.0,
+                "is_delivery": True,
+                "tax_ids": [(5, 0, 0)],
+            }
+        )
+        self.assertEqual(self.service._cart_cod_amount(self.order), 500.0)
+
+    def test_checkout_body_sends_package_cash_on_delivery(self):
+        self.order.order_line[0].write({"price_unit": 500.0, "tax_ids": [(5, 0, 0)]})
+        captured = {}
+
+        class _FakeClient:
+            def _post(self, path, payload):
+                captured["path"] = path
+                captured["payload"] = payload
+                return {"data": []}
+
+        class _FakeAdapter:
+            shop_id = "shop-1"
+            client = _FakeClient()
+
+        with patch(
+            "odoo.addons.envia.services.website_pickup.get_envia_adapter",
+            return_value=_FakeAdapter(),
+        ):
+            self.service._checkout_body(
+                self.order.company_id,
+                self._base_request(),
+                order=self.order,
+            )
+        package_services = captured["payload"]["package"]["additionalServices"]
+        self.assertEqual(
+            package_services,
+            [{"service": "cash_on_delivery", "data": {"amount": 500}}],
+        )
+        self.assertNotIn("additionalServices", captured["payload"])
+
+    def test_ship_option_cod_flag_when_rate_matches_cart_amount(self):
+        self.order.order_line[0].write({"price_unit": 500.0, "tax_ids": [(5, 0, 0)]})
+        with_cod = QuoteService(
+            service_id="fedex:ground",
+            carrier="fedex",
+            carrier_name="FedEx",
+            service_name="Ground",
+            price=95.0,
+            currency=self.order.currency_id.name,
+            cash_on_delivery_amount=500.0,
+        )
+        without_cod = QuoteService(
+            service_id="dhl:express",
+            carrier="dhl",
+            carrier_name="DHL",
+            service_name="Express",
+            price=120.0,
+            currency=self.order.currency_id.name,
+            cash_on_delivery_amount=100.0,
+        )
+        self.assertTrue(
+            self.service._serialize_ship_option(
+                self.order, with_cod, quote_id="q1"
+            )["cod"]
+        )
+        self.assertFalse(
+            self.service._serialize_ship_option(
+                self.order, without_cod, quote_id="q2"
+            )["cod"]
+        )
+
+    def test_parse_checkout_rates_reads_cash_on_delivery_amount(self):
+        from odoo.addons.envia.services.envia_official_adapter import (
+            EnviaOfficialAdapter,
+        )
+
+        services = EnviaOfficialAdapter._parse_checkout_rates(
+            [
+                {
+                    "carrier": "fedex",
+                    "service": "ground",
+                    "totalPrice": 95.0,
+                    "currency": "MXN",
+                    "cashOnDeliveryAmount": 500,
+                }
+            ],
+            self._base_request(),
+        )
+        self.assertEqual(services[0].cash_on_delivery_amount, 500.0)
+
     def test_list_ship_rates_keeps_door_to_door_only(self):
         with (
             patch.object(

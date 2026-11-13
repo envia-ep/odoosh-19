@@ -16,6 +16,45 @@
     }
 }
 
+.o_envia_choose_delivery_carrier {
+    .o_envia_destination_card {
+        max-width: 36rem;
+        padding: 0.55rem 0.75rem;
+        border: 1px solid $border-color;
+        border-radius: $border-radius;
+        background-color: rgba($o-gray-100, 0.45);
+
+        .o_field_widget {
+            margin-bottom: 0 !important;
+        }
+
+        .o_envia_address_lines {
+            display: block;
+            margin-top: 0.2rem;
+            color: $o-gray-600;
+            font-size: $font-size-sm;
+            line-height: 1.35;
+            white-space: normal;
+        }
+    }
+
+    .o_envia_option_row_compact {
+        align-items: center;
+        padding: 0.45rem 0.85rem;
+        gap: 0.65rem;
+    }
+
+    .o_envia_route_type_badge {
+        margin-top: 0;
+        flex-shrink: 0;
+    }
+
+    .o_envia_selected_rate_banner {
+        margin-bottom: 0.75rem !important;
+        padding: 0.45rem 0.75rem;
+    }
+}
+
 .o_envia_quote_wizard {
     .o_envia_side_panel {
         .o_envia_side_body {
@@ -884,4 +923,81 @@
     height: 100%;
     min-height: 0;
     border: 0;
+}
+
+.o_envia_branch_map {
+    .o_envia_branch_map_canvas {
+        // Explicit px height: % height collapses when parent only has min-height.
+        height: 360px;
+        width: 100%;
+        border: 1px solid var(--border-color, #dee2e6);
+        border-radius: 0.5rem;
+        overflow: hidden;
+        background: #e9ecef;
+    }
+}
+
+.o_envia_branch_map_origin {
+    .o_envia_branch_layout {
+        display: grid;
+        grid-template-columns: minmax(240px, 0.85fr) minmax(300px, 1.2fr);
+        gap: 0.75rem 1rem;
+        align-items: start;
+    }
+
+    .o_envia_branch_panel {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        min-width: 0;
+    }
+
+    .o_envia_branch_field,
+    .o_envia_branch_filter {
+        min-width: 0;
+    }
+
+    .o_envia_branch_filters {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.55rem 0.65rem;
+    }
+
+    .o_envia_branch_filter_label {
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: var(--secondary-color, #6c757d);
+    }
+
+    .o_envia_branch_selected .form-select {
+        font-size: 0.875rem;
+    }
+
+    .o_envia_branch_map_wrap {
+        min-width: 0;
+    }
+
+    .o_envia_branch_map_canvas {
+        height: 280px;
+    }
+}
+
+@media (max-width: 992px) {
+    .o_envia_branch_map_origin .o_envia_branch_layout {
+        grid-template-columns: 1fr;
+    }
+
+    .o_envia_branch_map_origin .o_envia_branch_map_canvas {
+        height: 320px;
+    }
+}
+
+@media (max-width: 576px) {
+    .o_envia_branch_map_origin .o_envia_branch_filters {
+        grid-template-columns: 1fr;
+    }
 }

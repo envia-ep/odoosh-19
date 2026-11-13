@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="envia.EnviaBranchMap">
+        <div class="o_envia_branch_map" t-att-class="side === 'origin' ? 'o_envia_branch_map_origin' : ''">
+            <div t-if="showEmpty" class="text-muted small mb-2" t-out="emptyMessage"/>
+            <div t-if="showSelectOnlyHint" class="text-muted small mb-2" t-out="selectOnlyMessage"/>
+
+            <div t-if="side === 'origin' and points.length" class="o_envia_branch_layout">
+                <div class="o_envia_branch_panel">
+                    <div class="o_envia_branch_filters">
+                        <div class="o_envia_branch_filter">
+                            <label class="o_envia_branch_filter_label">Provincia</label>
+                            <select class="form-select form-select-sm"
+                                    t-att-disabled="state.selecting"
+                                    t-on-change="onStateFilter">
+                                <option value="">Todos</option>
+                                <t t-foreach="stateOptions" t-as="opt" t-key="opt">
+                                    <option t-att-value="opt" t-att-selected="state.filterState === opt">
+                                        <t t-out="opt"/>
+                                    </option>
+                                </t>
+                            </select>
+                        </div>
+                        <div class="o_envia_branch_filter">
+                            <label class="o_envia_branch_filter_label">Localidad</label>
+                            <select class="form-select form-select-sm"
+                                    t-att-disabled="state.selecting"
+                                    t-on-change="onLocalityFilter">
+                                <option value="">Todos</option>
+                                <t t-foreach="localityOptions" t-as="opt" t-key="opt">
+                                    <option t-att-value="opt" t-att-selected="state.filterLocality === opt">
+                                        <t t-out="opt"/>
+                                    </option>
+                                </t>
+                            </select>
+                        </div>
+                        <div class="o_envia_branch_filter">
+                            <label class="o_envia_branch_filter_label">Sucursal</label>
+                            <select class="form-select form-select-sm"
+                                    t-att-disabled="state.selecting"
+                                    t-on-change="onBranchFilter">
+                                <option value="">Todos</option>
+                                <t t-foreach="filteredPoints" t-as="point" t-key="'f-' + point.code">
+                                    <option t-att-value="point.code"
+                                            t-att-selected="state.filterCode === point.code">
+                                        <t t-out="point.code"/>
+                                    </option>
+                                </t>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="o_envia_branch_field o_envia_branch_selected">
+                        <select class="form-select form-select-sm"
+                                t-att-disabled="state.selecting"
+                                t-on-change="onSelect">
+                            <option value=""><t t-out="placeholder"/></option>
+                            <t t-foreach="filteredPoints" t-as="point" t-key="'s-' + point.code">
+                                <option t-att-value="point.code" t-att-selected="point.selected">
+                                    <t t-out="point.label"/>
+                                </option>
+                            </t>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="o_envia_branch_map_wrap">
+                    <div t-ref="map" class="o_envia_branch_map_canvas"/>
+                </div>
+            </div>
+
+            <t t-if="side !== 'origin'">
+                <select t-if="points.length"
+                        class="form-select mb-2"
+                        t-att-disabled="state.selecting"
+                        t-on-change="onSelect">
+                    <option value=""><t t-out="placeholder"/></option>
+                    <t t-foreach="points" t-as="point" t-key="point.code">
+                        <option t-att-value="point.code" t-att-selected="point.selected">
+                            <t t-out="point.label"/>
+                        </option>
+                    </t>
+                </select>
+                <div t-ref="mapDest" class="o_envia_branch_map_canvas"/>
+            </t>
+        </div>
+    </t>
+</templates>

@@ -161,6 +161,20 @@
         <field name="code">action = env.company.action_envia_shipping_rules_settings_dashboard()</field>
     </record>
 
+    <record id="action_envia_open_products_edit_bulk" model="ir.actions.server">
+        <field name="name">Open Envia Products Edit Bulk</field>
+        <field name="model_id" ref="base.model_res_company"/>
+        <field name="state">code</field>
+        <field name="code">action = env.company.action_envia_open_products_edit_bulk()</field>
+    </record>
+
+    <record id="action_envia_products_edit_bulk_dashboard" model="ir.actions.server">
+        <field name="name">Envia Products Edit Bulk Dashboard</field>
+        <field name="model_id" ref="base.model_res_company"/>
+        <field name="state">code</field>
+        <field name="code">action = env.company.action_envia_products_edit_bulk_dashboard()</field>
+    </record>
+
     <record id="action_envia_app_entry" model="ir.actions.server">
         <field name="name">Envia.com</field>
         <field name="model_id" ref="model_envia_plugin_connect_wizard"/>

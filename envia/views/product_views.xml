@@ -9,6 +9,9 @@
             <xpath expr="//group[@name='group_lots_and_weight']" position="attributes">
                 <attribute name="invisible">0</attribute>
             </xpath>
+            <xpath expr="//group[@name='group_lots_and_weight']" position="inside">
+                <field name="envia_product_code"/>
+            </xpath>
         </field>
     </record>
 </odoo>

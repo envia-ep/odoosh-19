@@ -17,7 +17,9 @@ export class EnviaChooseDeliveryCarrierController extends FormController {
         };
         onMounted(() => {
             this.rootRef.el?.addEventListener("click", this._optionClickHandler, true);
-            if (this.model.root.data.envia_show_service_rates) {
+            if (this.model.root.data.envia_show_origin_branch_picker) {
+                this._scrollToOriginBranchSection();
+            } else if (this.model.root.data.envia_show_service_rates) {
                 this._scrollToRatesSection();
             }
         });
@@ -28,6 +30,10 @@ export class EnviaChooseDeliveryCarrierController extends FormController {
         // After Get rate, rates appear on the same dialog — scroll to the list.
         useEffect(
             () => {
+                if (this.model.root.data.envia_show_origin_branch_picker) {
+                    this._scrollToOriginBranchSection();
+                    return;
+                }
                 if (this.model.root.data.envia_show_service_rates) {
                     this._scrollToRatesSection();
                 }
@@ -41,6 +47,8 @@ export class EnviaChooseDeliveryCarrierController extends FormController {
                     this._getWizardId(this.model.root),
                     count,
                     this.model.root.data.envia_show_service_rates,
+                    this.model.root.data.envia_show_origin_branch_picker,
+                    this.model.root.data.envia_origin_branch_map_json,
                 ];
             }
         );
@@ -104,10 +112,40 @@ export class EnviaChooseDeliveryCarrierController extends FormController {
 
     async _applyServerAction(action) {
         if (action && action.type === "ir.actions.act_window" && action.res_model) {
-            await this.action.doAction(action, { stackPosition: "replaceCurrentAction" });
+            // Discard local x2many dirt, then replace — close+save raced with
+            // server-side rate/branch reloads (MissingError on stale service ids).
+            try {
+                await this.model.root.discard();
+            } catch {
+                // ignore
+            }
+            await this.action.doAction(action, {
+                stackPosition: "replaceCurrentAction",
+            });
             return true;
         }
         return false;
+    }
+
+    async _reopenChooseDeliveryCarrier() {
+        const record = this.model.root;
+        if (!record.resId) {
+            return;
+        }
+        try {
+            await this.action.doAction({ type: "ir.actions.act_window_close" });
+        } catch {
+            // ignore
+        }
+        await this.action.doAction({
+            type: "ir.actions.act_window",
+            name: record.data.display_name || "Shipping",
+            res_model: "choose.delivery.carrier",
+            res_id: record.resId,
+            views: [[false, "form"]],
+            target: "new",
+            context: record.context || {},
+        });
     }
 
     async _safeReloadForm() {
@@ -190,18 +228,61 @@ export class EnviaChooseDeliveryCarrierController extends FormController {
         if (!serviceId || !(await this._ensureSavedRecord())) {
             return;
         }
-        this._syncRateSelectionInUI(serviceId);
         const action = await this.orm.call(
             "choose.delivery.carrier",
             "action_envia_select_service",
             [[record.resId]],
             { service_id: serviceId }
         );
-        this._syncRateSelectionInUI(serviceId);
         if (await this._applyServerAction(action)) {
             return;
         }
+        // Fallback if the server returned noop/false: remount anyway when map needed.
         await this._safeReloadForm();
+        if (
+            this.model.root.data.envia_show_origin_branch_picker ||
+            this.model.root.data.envia_show_destination_branch_picker
+        ) {
+            await this._reopenChooseDeliveryCarrier();
+            return;
+        }
+    }
+
+    _scrollToOriginBranchSection() {
+        const attempt = (n = 0) => {
+            if (this.__owl__?.isDestroyed) {
+                return;
+            }
+            const root = this.rootRef.el;
+            const target =
+                root?.querySelector(".o_envia_section .o_envia_branch_map_origin") ||
+                root?.querySelector(".o_field_widget[name='envia_origin_branch_map_json']");
+            if (!target) {
+                if (n < 40) {
+                    setTimeout(() => attempt(n + 1), 50);
+                }
+                return;
+            }
+            const parents = [
+                target.closest(".modal-body"),
+                target.closest(".modal"),
+                target.closest(".o_dialog"),
+            ].filter(Boolean);
+            for (const parent of parents) {
+                if (parent.scrollHeight <= parent.clientHeight + 1) {
+                    continue;
+                }
+                const top =
+                    target.getBoundingClientRect().top -
+                    parent.getBoundingClientRect().top +
+                    parent.scrollTop -
+                    8;
+                parent.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+                return;
+            }
+            target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        };
+        setTimeout(() => attempt(), 120);
     }
 
     async _onBranchCardClick(ev) {

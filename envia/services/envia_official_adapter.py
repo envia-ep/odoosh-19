@@ -27,6 +27,13 @@ from .envia_config import (
     get_envia_order_shipments_unlink_path,
     get_envia_package_dimensions_path,
 )
+from .international import (
+    customs_item_from_shipment_item,
+    is_international,
+    is_missing_product_code_error,
+    missing_product_code_names,
+    missing_product_code_user_message,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -50,9 +57,13 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
     def envia_state_code(cls, country_code: str | None, state_code: str | None) -> str:
         if not state_code:
             return ""
+        code = state_code.strip().upper()
+        # Carriers schema: short state (e.g. ``MX-JAL`` → ``JAL``).
+        if "-" in code:
+            code = code.split("-")[-1]
         if country_code == "MX":
-            return cls._MX_STATE_TO_ENVIA.get(state_code.upper(), state_code)
-        return state_code
+            code = cls._MX_STATE_TO_ENVIA.get(code, code)
+        return code[:3] if len(code) > 3 else code
 
     @classmethod
     def odoo_state_codes(cls, country_code: str | None, envia_state: str | None) -> tuple[str, ...]:
@@ -70,6 +81,7 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
         default_carriers: str = "dhl,fedex,estafeta",
         checkout_settings_action_id: int | None = None,
         label_settings_action_id: int | None = None,
+        products_edit_bulk_action_id: int | None = None,
     ) -> None:
         self.client = client
         self.shop_id = (shop_id or "").strip()
@@ -80,6 +92,7 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
         ]
         self.checkout_settings_action_id = checkout_settings_action_id
         self.label_settings_action_id = label_settings_action_id
+        self.products_edit_bulk_action_id = products_edit_bulk_action_id
 
     def quote(self, request: QuoteRequest) -> QuoteResponse:
         if not self.shop_id:
@@ -114,10 +127,11 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
                 service for service in services if service.carrier in carriers
             ]
 
-        expected_drop_off = EnviaOfficialAdapter._resolve_expected_drop_off(
-            request
-        )
-        services = self._prefer_services_for_route(services, expected_drop_off)
+        if request.filter_by_route:
+            expected_drop_off = EnviaOfficialAdapter._resolve_expected_drop_off(
+                request
+            )
+            services = self._prefer_services_for_route(services, expected_drop_off)
 
         if not services:
             raise UserError(self._build_no_rates_message(request, carrier_errors))
@@ -365,11 +379,14 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
         self,
         order_id: int,
         service_id: int | str | None = None,
+        *,
+        customs_extras: dict[str, Any] | None = None,
     ) -> CreateShipmentResponse:
         """Create label via ecommerce ``POST label/create/{shop_id}``.
 
         Body uses the Odoo ``sale.order`` database id (string) and the selected
-        Envia numeric ``service_id``.
+        Envia numeric ``service_id``. Optional ``customs_extras`` merges
+        ``origin``/``destination`` ``branchCode`` and international customs.
         """
         if not self.shop_id:
             raise UserError(
@@ -391,6 +408,11 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
                 )
             )
         payload: dict[str, Any] = {"id": str(order_id), "service_id": sid}
+        if customs_extras:
+            for key, value in customs_extras.items():
+                if value in (None, False, ""):
+                    continue
+                payload[key] = value
         _logger.info(
             "Envia label/create shop_id=%s payload=%s",
             self.shop_id,
@@ -405,6 +427,7 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
             )
         except UserError as error:
             self._reraise_label_settings_redirect(error)
+            self._reraise_missing_product_code_redirect(error)
             raise
         if isinstance(body, dict) and not body.get("status"):
             raw = EnviaOfficialAdapter._label_create_error_raw(body)
@@ -413,14 +436,16 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
                 and self.label_settings_action_id
             ):
                 raise RedirectWarning(
-                    EnviaClient.humanize_api_message(raw),
+                    EnviaOfficialAdapter._format_label_create_raw(raw),
                     self.label_settings_action_id,
                     _("Open Envia"),
                 )
+            self._raise_or_redirect_label_create_failure(raw)
         try:
             return self._parse_label_create_response(body)
         except UserError as error:
             self._reraise_label_settings_redirect(error)
+            self._reraise_missing_product_code_redirect(error)
             raise
 
     @staticmethod
@@ -454,6 +479,29 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
             _("Open Envia"),
         ) from error
 
+    def _reraise_missing_product_code_redirect(self, error: UserError) -> None:
+        """Offer Envia products bulk-edit when HS productCode is missing."""
+        if not self.products_edit_bulk_action_id:
+            return
+        message = str(error.args[0] if error.args else error)
+        if not is_missing_product_code_error(message):
+            return
+        raise RedirectWarning(
+            missing_product_code_user_message(missing_product_code_names(message)),
+            self.products_edit_bulk_action_id,
+            _("Open Envia products"),
+        ) from error
+
+    def _raise_or_redirect_label_create_failure(self, raw) -> None:
+        text = EnviaOfficialAdapter._format_label_create_raw(raw)
+        if is_missing_product_code_error(text) and self.products_edit_bulk_action_id:
+            raise RedirectWarning(
+                missing_product_code_user_message(missing_product_code_names(text)),
+                self.products_edit_bulk_action_id,
+                _("Open Envia products"),
+            )
+        EnviaOfficialAdapter._raise_label_create_failure(raw)
+
     @staticmethod
     def _label_create_service_id(service_id: int | str | None) -> int | None:
         if service_id in (None, False, ""):
@@ -470,16 +518,24 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
         return raw if raw not in (None, False, "") else body
 
     @staticmethod
-    def _raise_label_create_failure(raw) -> None:
-        message = EnviaClient.humanize_api_message(raw)
+    def _format_label_create_raw(raw) -> str:
         if isinstance(raw, (list, tuple)):
-            raw_text = "\n".join(str(part) for part in raw if part not in (None, False, ""))
-        else:
-            raw_text = str(raw or "").strip()
-        # Known API phrases become a full UX sentence — do not prefix.
-        if message != raw_text:
-            raise UserError(message)
-        raise UserError(_("Envia did not generate a label: %s") % message)
+            return "\n".join(
+                str(part) for part in raw if part not in (None, False, "")
+            )
+        if isinstance(raw, dict):
+            import json
+
+            return json.dumps(raw, ensure_ascii=False, default=str)
+        return str(raw or "").strip()
+
+    @staticmethod
+    def _raise_label_create_failure(raw) -> None:
+        # Always surface Envia's raw payload (sandbox and production).
+        raise UserError(
+            _("Envia raw error:\n%s")
+            % EnviaOfficialAdapter._format_label_create_raw(raw)
+        )
 
     @staticmethod
     def _parse_label_create_response(body: dict[str, Any]) -> CreateShipmentResponse:
@@ -555,27 +611,39 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
         )
         declared_value = sum(item.price * item.quantity for item in request.items)
         dimensions = EnviaOfficialAdapter._package_dimensions()
+        package: dict[str, Any] = {
+            "type": "box",
+            "content": EnviaOfficialAdapter._normalize_package_content(
+                request.package_content
+            ),
+            "amount": 1,
+            "declaredValue": declared_value or 0,
+            "lengthUnit": EnviaOfficialAdapter._package_length_unit(
+                dimensions
+            ),
+            "weightUnit": request.weight_unit,
+            "weight": request.package_weight or 1.0,
+            "dimensions": dimensions,
+        }
+        origin_country = request.origin_contact.country if request.origin_contact else ""
+        destination_country = (
+            request.destination_contact.country if request.destination_contact else ""
+        )
+        international = is_international(origin_country, destination_country)
+        customs_items = list(request.customs_items or [])
+        if international and not customs_items:
+            customs_items = [
+                customs_item_from_shipment_item(item, default_country=origin_country)
+                for item in request.items
+            ]
+        if international and customs_items:
+            package["items"] = customs_items
         payload = {
             "origin": self._contact_to_official_address(request.origin_contact),
             "destination": self._contact_to_official_address(
                 request.destination_contact
             ),
-            "packages": [
-                {
-                    "type": "box",
-                    "content": EnviaOfficialAdapter._normalize_package_content(
-                        request.package_content
-                    ),
-                    "amount": 1,
-                    "declaredValue": declared_value or 0,
-                    "lengthUnit": EnviaOfficialAdapter._package_length_unit(
-                        dimensions
-                    ),
-                    "weightUnit": request.weight_unit,
-                    "weight": request.package_weight or 1.0,
-                    "dimensions": dimensions,
-                }
-            ],
+            "packages": [package],
             "shipment": {
                 "type": 1,
                 "carrier": carrier,
@@ -590,6 +658,8 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
                 "printSize": request.print_size,
             },
         }
+        if international and request.customs_settings:
+            payload["customsSettings"] = request.customs_settings
         additional_services = self._build_additional_services(
             request.origin_contact,
             request.destination_contact,
@@ -718,24 +788,60 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
         )
         declared_value = request.declared_value or 0
         dimensions = EnviaOfficialAdapter._package_dimensions()
-        return {
+        package: dict[str, Any] = {
+            "content": EnviaOfficialAdapter._normalize_package_content(request.content),
+            "amount": "1",
+            "type": "box",
+            "dimensions": dimensions,
+            "weight": str(request.weight),
+            "lengthUnit": EnviaOfficialAdapter._package_length_unit(dimensions),
+            "weightUnit": request.weight_unit,
+            "insurance": "0",
+            "declaredValue": f"{declared_value:.2f}",
+        }
+        package_services = EnviaOfficialAdapter._package_additional_services(
+            request.additional_services
+        )
+        if package_services:
+            package["additionalServices"] = package_services
+        payload = {
             "origin": origin,
             "destination": destination,
             "items": EnviaOfficialAdapter._checkout_items(request),
-            "package": {
-                "content": EnviaOfficialAdapter._normalize_package_content(request.content),
-                "amount": "1",
-                "type": "box",
-                "dimensions": dimensions,
-                "weight": str(request.weight),
-                "lengthUnit": EnviaOfficialAdapter._package_length_unit(dimensions),
-                "weightUnit": request.weight_unit,
-                "insurance": "0",
-                "declaredValue": f"{declared_value:.2f}",
-            },
+            "package": package,
             "currency": request.currency,
             "locale": request.locale,
         }
+        # Sales lists all routes: request both pickup additionalServices.
+        if not request.filter_by_route:
+            additional = EnviaOfficialAdapter._pickup_point_services_for_drop_off(3)
+            if additional:
+                payload["additionalServices"] = additional
+        return payload
+
+    @staticmethod
+    def _package_additional_services(
+        extra_services: list[AdditionalService] | None,
+    ) -> list[dict[str, Any]]:
+        """Package-level extras (e.g. cash_on_delivery with cart amount)."""
+        services: list[dict[str, Any]] = []
+        for entry in extra_services or []:
+            if entry.service != "cash_on_delivery":
+                continue
+            if entry.amount is None:
+                continue
+            amount = float(entry.amount)
+            if amount <= 0:
+                continue
+            # Envia accepts numeric amount; keep ints clean (500 not 500.0).
+            payload_amount: int | float = int(amount) if amount == int(amount) else amount
+            services.append(
+                {
+                    "service": "cash_on_delivery",
+                    "data": {"amount": payload_amount},
+                }
+            )
+        return services
 
     @staticmethod
     def _checkout_items(request: QuoteRequest) -> list[dict[str, Any]]:
@@ -861,8 +967,43 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
             "country": contact.country,
             "postalCode": contact.postal_code,
         }
+        if contact.identification_number:
+            payload["identificationNumber"] = contact.identification_number
         if contact.branch_code:
             payload["branchCode"] = contact.branch_code
+        return payload
+
+    @staticmethod
+    def contact_to_label_create_address(contact: Contact) -> dict[str, Any]:
+        """Ecommerce label/create origin/destination address (intl contract)."""
+        street, number = EnviaOfficialAdapter._split_street_and_number(
+            contact.street,
+            contact.number,
+        )
+        payload: dict[str, Any] = {
+            "name": contact.name or "",
+            "email": contact.email or "",
+            "phone": contact.phone or "",
+            "street": street or "",
+            "number": number or "S/N",
+            "city": contact.city or "",
+            "state": EnviaOfficialAdapter.envia_state_code(
+                contact.country, contact.state
+            ),
+            "country": contact.country or "",
+            "postalCode": contact.postal_code or "",
+        }
+        # Optional keys: Envia 422s on empty strings (e.g. interior_number).
+        for key, value in (
+            ("company", contact.company),
+            ("interior_number", contact.interior_number),
+            ("district", contact.district),
+            ("identification_number", contact.identification_number),
+            ("branchCode", contact.branch_code),
+        ):
+            text = (value or "").strip() if isinstance(value, str) else (value or "")
+            if text:
+                payload[key] = text
         return payload
 
     @staticmethod
@@ -959,6 +1100,17 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
                 "cost",
                 "amount",
             )
+            cod_raw = EnviaOfficialAdapter._checkout_rate_value(
+                rate,
+                "cashOnDeliveryAmount",
+                "cash_on_delivery_amount",
+            )
+            try:
+                cod_amount = (
+                    float(cod_raw) if cod_raw not in (None, False, "") else None
+                )
+            except (TypeError, ValueError):
+                cod_amount = None
             services.append(
                 QuoteService(
                     service_id=f"{rate_carrier}:{service_code}",
@@ -997,6 +1149,7 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
                         )
                     ),
                     drop_off=int(drop_off) if drop_off is not None else None,
+                    cash_on_delivery_amount=cod_amount,
                 )
             )
         return services
@@ -1105,6 +1258,8 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
             "country": contact.country,
             "postalCode": contact.postal_code,
         }
+        if contact.identification_number:
+            payload["identificationNumber"] = contact.identification_number
         if contact.interior_number:
             payload["interiorNumber"] = contact.interior_number
         if contact.branch_code:

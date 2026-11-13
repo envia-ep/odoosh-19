@@ -103,6 +103,21 @@
     word-break: break-word;
 }
 
+.o_envia_delivery_panel .o_envia_option_cod,
+.o_envia_delivery_panel .o_envia_map .o_envia_option_cod {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.05rem 0.35rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    vertical-align: middle;
+    color: #fff;
+    background: var(--o-envia-ink);
+    border-radius: 0.2rem;
+}
+
 .o_envia_delivery_panel .o_envia_option_price {
     font-weight: 700;
     font-size: 0.95rem;

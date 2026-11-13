@@ -16,6 +16,7 @@
                     <field name="destination_partner_readonly" invisible="1"/>
                     <field name="is_sandbox" invisible="1"/>
                     <field name="is_standalone" invisible="1"/>
+                    <field name="is_international_route" invisible="1"/>
                     <field name="selected_service_label" invisible="1"/>
                     <field name="selected_carrier_code" invisible="1"/>
                     <field name="show_origin_branch_picker" invisible="1"/>
@@ -31,6 +32,7 @@
                     <field name="destination_selected_branch_label" invisible="1"/>
                     <field name="origin_branch_line_ids" invisible="1"/>
                     <field name="destination_branch_line_ids" invisible="1"/>
+                    <field name="destination_branch_map_json" invisible="1"/>
                     <field name="service_line_ids" invisible="1"/>
                     <field name="validation_summary" invisible="1"/>
                     <field name="show_service_rates" invisible="1"/>
@@ -80,9 +82,7 @@
 
                     <group>
                         <group string="Origin" class="o_envia_side_panel">
-                            <field name="origin_location_type" widget="radio"
-                                   options="{'horizontal': true}"
-                                   invisible="not envia_branches_enabled"/>
+                            <field name="origin_location_type" invisible="1"/>
 
                             <div class="o_envia_side_body" colspan="2">
                                 <field name="origin_warehouse_id" string="Warehouse"
@@ -120,17 +120,11 @@
                                         string="Edit warehouse"
                                         class="btn btn-link btn-sm p-0"
                                         invisible="not origin_warehouse_id or origin_readonly"/>
-                                <div class="o_envia_side_hint mt-2"
-                                     invisible="origin_location_type != 'branch'">
-                                    Enter your business address above. You can drop the package at any branch of the carrier you choose.
-                                </div>
                             </div>
                         </group>
 
                         <group string="Destination" class="o_envia_side_panel">
-                            <field name="destination_location_type" widget="radio"
-                                   options="{'horizontal': true}"
-                                   invisible="not envia_branches_enabled"/>
+                            <field name="destination_location_type" invisible="1"/>
 
                             <div class="o_envia_side_body" colspan="2">
                                 <field name="destination_partner_id" string="Contact"
@@ -160,17 +154,13 @@
                                         string="Edit contact"
                                         class="btn btn-link btn-sm p-0"
                                         invisible="not destination_partner_id"/>
-                                <div class="o_envia_side_hint mt-2"
-                                     invisible="destination_location_type != 'branch'">
-                                    Enter the branch address and postal code where your customer will collect.
-                                </div>
                             </div>
                         </group>
                     </group>
 
                     <div class="o_envia_section" invisible="not show_origin_branch_picker">
                         <div class="d-flex align-items-baseline justify-content-between gap-3 mb-2">
-                            <div class="o_envia_section_title mb-0">Origin pickup locations</div>
+                            <div class="o_envia_section_title mb-0">Sucursal de origen</div>
                             <button name="action_load_origin_branches" type="object"
                                     string="Load pickup locations"
                                     class="btn btn-link btn-sm p-0"
@@ -180,15 +170,12 @@
                              invisible="not origin_branch_load_error">
                             <field name="origin_branch_load_error" readonly="1" nolabel="1"/>
                         </div>
-                        <div class="alert alert-light border o_envia_selected_rate_hint py-2 mb-2"
-                             role="status"
-                             invisible="not origin_selected_branch_label">
-                            <i class="fa fa-check-circle text-success me-1" title="Selected"/>
-                            <field name="origin_selected_branch_label" readonly="1" nolabel="1"/>
-                        </div>
+                        <field name="origin_branch_map_json" widget="envia_branch_map"
+                               options="{'side': 'origin'}" nolabel="1"
+                               invisible="not show_origin_branch_picker"/>
                         <field name="origin_branch_line_ids" nolabel="1"
                                class="o_envia_option_kanban" mode="kanban"
-                               invisible="not origin_branch_count">
+                               invisible="show_origin_branch_picker or not origin_branch_count">
                             <kanban create="false" delete="false" class="o_envia_option_list">
                                 <field name="is_selected"/>
                                 <field name="side"/>
@@ -249,6 +236,9 @@
                             <i class="fa fa-check-circle text-success me-1" title="Selected"/>
                             <field name="destination_selected_branch_label" readonly="1" nolabel="1"/>
                         </div>
+                        <field name="destination_branch_map_json" widget="envia_branch_map"
+                               options="{'side': 'destination'}" nolabel="1"
+                               invisible="not show_destination_branch_picker"/>
                         <field name="destination_branch_line_ids" nolabel="1"
                                class="o_envia_option_kanban" mode="kanban"
                                invisible="not destination_branch_count">
@@ -292,6 +282,15 @@
                                 </templates>
                             </kanban>
                         </field>
+                    </div>
+
+                    <div class="o_envia_section" invisible="not is_international_route">
+                        <div class="o_envia_section_title mb-2">Customs (international)</div>
+                        <group>
+                            <field name="identification_number_origin"/>
+                            <field name="destination_identification_number" readonly="1"/>
+                            <field name="export_reason"/>
+                        </group>
                     </div>
 
                     <div class="o_envia_section o_envia_rates_section" invisible="not show_service_rates">
@@ -345,8 +344,8 @@
                             <field name="selected_service_label" readonly="1" nolabel="1"/>
                         </div>
                         <div class="text-warning" role="status"
-                             invisible="can_generate_label or not selected_service_label">
-                            Select the required pickup locations to generate the label.
+                             invisible="can_generate_label or not label_blocking_message">
+                            <field name="label_blocking_message" readonly="1" nolabel="1"/>
                         </div>
                     </div>
                     <button name="action_get_quote" type="object"

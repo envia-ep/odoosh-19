@@ -86,6 +86,8 @@ credentials from Envia.com before release.
             "envia/static/src/js/envia_wizard_noop_action.js",
             "envia/static/src/js/envia_quote_wizard_form.js",
             "envia/static/src/js/envia_choose_delivery_carrier_form.js",
+            "envia/static/src/js/envia_branch_map.js",
+            "envia/static/src/xml/envia_branch_map.xml",
             "envia/static/src/components/envia_onboarding/**/*",
             "envia/static/src/components/envia_generic_form/**/*",
             "envia/static/src/views/envia_quote_list/**/*",

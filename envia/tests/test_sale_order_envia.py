@@ -361,6 +361,7 @@ class TestSaleOrderEnvia(TransactionCase):
         self.assertEqual(len(services), 1)
         self.assertEqual(services[0].service_id, "fedex:economy")
         self.assertEqual(services[0].price, 182.0)
+        self.assertIsNone(services[0].cash_on_delivery_amount)
 
     def test_quote_raises_on_envia_checkout_meta_error(self):
         from unittest.mock import MagicMock
@@ -1858,8 +1859,8 @@ class TestSaleOrderEnvia(TransactionCase):
         self.assertEqual(action["context"]["default_sale_order_id"], order.id)
         self.assertEqual(order.state, "draft")
 
-    def test_label_ready_branch_to_home_does_not_require_origin_code(self):
-        # Origin=branch means drop at any carrier location; no concrete origin code.
+    def test_label_ready_branch_to_home_requires_origin_code(self):
+        # Envia label/create rejects dropOff 1 without origin.branchCode / envia_module.
         quote = self.env["envia.quote"].create(
             {
                 "origin_postal_code": "67192",
@@ -1885,9 +1886,237 @@ class TestSaleOrderEnvia(TransactionCase):
             }
         )
         quote.selected_service_id = service.id
-        self.assertTrue(quote._is_label_ready())
+        self.assertFalse(quote._is_label_ready())
         quote.company_id.envia_enable_labels = True
+        with self.assertRaises(UserError):
+            quote._validate_label_generation()
+        quote.origin_branch_code = "MTY04"
+        quote.origin_branch_name = "Monterrey"
+        quote.origin_branch_street = "Calidad"
+        self.assertTrue(quote._is_label_ready())
         quote._validate_label_generation()
+        self.assertEqual(quote._envia_module_values()["branch_code"], "MTY04")
+
+    def test_destination_tax_id_always_uses_shipping_partner_vat(self):
+        partner = self.env["res.partner"].create(
+            {
+                "name": "Dest VAT",
+                "vat": "XAXX010101000",
+                "country_id": self.env.ref("base.mx").id,
+            }
+        )
+        product = self.env["product.product"].search([("sale_ok", "=", True)], limit=1)
+        order = self.env["sale.order"].create(
+            {
+                "partner_id": partner.id,
+                "partner_invoice_id": partner.id,
+                "partner_shipping_id": partner.id,
+                "envia_destination_identification_number": "CUSTOM-OVERRIDE",
+                "order_line": [(0, 0, {"product_id": product.id, "product_uom_qty": 1.0})],
+            }
+        )
+        quote = self.env["envia.quote"].create(
+            {
+                "sale_order_id": order.id,
+                "origin_postal_code": "67192",
+                "origin_country": "MX",
+                "destination_postal_code": "03100",
+                "destination_country": "US",
+                "destination_identification_number": "OTHER-OVERRIDE",
+                "weight": 1.0,
+                "content": "Package",
+                "state": "quoted",
+            }
+        )
+        self.assertEqual(
+            order._envia_resolve_destination_tax_id(quote),
+            "XAXX010101000",
+        )
+
+    def test_label_create_extras_include_origin_branch_code(self):
+        partner = self.env.company.partner_id
+        product = self.env["product.product"].search([("sale_ok", "=", True)], limit=1)
+        order = self.env["sale.order"].create(
+            {
+                "partner_id": partner.id,
+                "partner_invoice_id": partner.id,
+                "partner_shipping_id": partner.id,
+                "order_line": [(0, 0, {"product_id": product.id, "product_uom_qty": 1.0})],
+            }
+        )
+        quote = self.env["envia.quote"].create(
+            {
+                "sale_order_id": order.id,
+                "origin_postal_code": "67192",
+                "origin_country": "MX",
+                "origin_location_type": "branch",
+                "origin_branch_code": "SUL",
+                "destination_postal_code": "03100",
+                "destination_country": "MX",
+                "destination_location_type": "address",
+                "weight": 1.0,
+                "content": "Package",
+                "state": "quoted",
+            }
+        )
+        service = self.env["envia.quote.service"].create(
+            {
+                "quote_id": quote.id,
+                "service_id": "estafeta:ground",
+                "envia_service_id": 691,
+                "carrier": "estafeta",
+                "service_name": "Terrestre",
+                "price": 100.0,
+                "drop_off": 1,
+                "is_selected": True,
+            }
+        )
+        quote.selected_service_id = service.id
+        extras = order._envia_label_create_extras(quote)
+        self.assertEqual(extras.get("origin"), {"branchCode": "SUL"})
+        self.assertIn("destination", extras)
+        self.assertTrue((extras["destination"].get("state") or "").strip())
+
+    def test_label_create_extras_destination_state_code(self):
+        us = self.env.ref("base.us")
+        ne = self.env["res.country.state"].search(
+            [("country_id", "=", us.id), ("code", "=", "NE")], limit=1
+        )
+        partner = self.env["res.partner"].create(
+            {
+                "name": "Miami Dest",
+                "street": "123 Main",
+                "city": "Miami",
+                "zip": "33101",
+                "country_id": us.id,
+                "state_id": ne.id,
+                "email": "dest@example.com",
+                "phone": "5555555555",
+            }
+        )
+        product = self.env["product.product"].search([("sale_ok", "=", True)], limit=1)
+        order = self.env["sale.order"].create(
+            {
+                "partner_id": partner.id,
+                "partner_invoice_id": partner.id,
+                "partner_shipping_id": partner.id,
+                "order_line": [(0, 0, {"product_id": product.id, "product_uom_qty": 1.0})],
+            }
+        )
+        quote = self.env["envia.quote"].create(
+            {
+                "sale_order_id": order.id,
+                "origin_postal_code": "67192",
+                "origin_country": "MX",
+                "destination_postal_code": "33101",
+                "destination_country": "US",
+                "destination_state": "NE",
+                "destination_city": "Miami",
+                "weight": 1.0,
+                "content": "Package",
+                "state": "quoted",
+            }
+        )
+        extras = order._envia_label_create_extras(quote)
+        self.assertEqual(extras["destination"]["state"], "NE")
+        self.assertEqual(extras["destination"]["country"], "US")
+        self.assertEqual(extras["destination"]["postalCode"], "33101")
+        self.assertIn("identification_number", extras["destination"])
+
+    def test_international_label_create_extras_domicile_contract(self):
+        mx = self.env.ref("base.mx")
+        us = self.env.ref("base.us")
+        nl = self.env.ref("base.state_mx_nl")
+        ne = self.env["res.country.state"].search(
+            [("country_id", "=", us.id), ("code", "=", "NE")], limit=1
+        )
+        origin = self.env["res.partner"].create(
+            {
+                "name": "Ana García",
+                "street": "Av. Constitución 1500",
+                "city": "Monterrey",
+                "zip": "64000",
+                "country_id": mx.id,
+                "state_id": nl.id,
+                "email": "tienda@demo.mx",
+                "phone": "8181234567",
+                "vat": "XAXX010101000",
+            }
+        )
+        dest = self.env["res.partner"].create(
+            {
+                "name": "Juan Pérez",
+                "street": "Carrer de Mallorca 200",
+                "city": "Miami",
+                "zip": "33101",
+                "country_id": us.id,
+                "state_id": ne.id,
+                "email": "juan@mail.com",
+                "phone": "34600000000",
+                "vat": "X1234567A",
+            }
+        )
+        product = self.env["product.product"].search([("sale_ok", "=", True)], limit=1)
+        order = self.env["sale.order"].create(
+            {
+                "partner_id": dest.id,
+                "partner_invoice_id": dest.id,
+                "partner_shipping_id": dest.id,
+                "warehouse_id": self.env["stock.warehouse"]
+                .search([("company_id", "=", self.env.company.id)], limit=1)
+                .id,
+                "envia_duties_payment_entity": "sender",
+                "envia_export_reason": "sale",
+                "order_line": [(0, 0, {"product_id": product.id, "product_uom_qty": 1.0})],
+            }
+        )
+        # Force warehouse origin partner for the test.
+        order.warehouse_id.partner_id = origin
+        quote = self.env["envia.quote"].create(
+            {
+                "sale_order_id": order.id,
+                "origin_partner_id": origin.id,
+                "origin_postal_code": "64000",
+                "origin_country": "MX",
+                "origin_state": "NL",
+                "origin_city": "Monterrey",
+                "destination_postal_code": "33101",
+                "destination_country": "US",
+                "destination_state": "NE",
+                "destination_city": "Miami",
+                "weight": 1.0,
+                "content": "Package",
+                "state": "quoted",
+                "export_reason": "sale",
+                "duties_payment_entity": "sender",
+            }
+        )
+        service = self.env["envia.quote.service"].create(
+            {
+                "quote_id": quote.id,
+                "service_id": "fedex:economy",
+                "envia_service_id": 4,
+                "carrier": "fedex",
+                "service_name": "Economy",
+                "price": 100.0,
+                "drop_off": 0,
+                "is_selected": True,
+            }
+        )
+        quote.selected_service_id = service.id
+        extras = order._envia_label_create_extras(quote)
+        self.assertEqual(extras["identification_number_origin"], "XAXX010101000")
+        self.assertEqual(extras["identification_number_destination"], "X1234567A")
+        self.assertEqual(extras["origin"]["state"], "NL")
+        self.assertEqual(extras["origin"]["country"], "MX")
+        self.assertEqual(extras["origin"]["identification_number"], "XAXX010101000")
+        self.assertEqual(extras["destination"]["state"], "NE")
+        self.assertEqual(extras["destination"]["country"], "US")
+        self.assertEqual(extras["destination"]["identification_number"], "X1234567A")
+        self.assertEqual(extras["customs_settings"], {"exportReason": "sale"})
+        self.assertNotIn("dutiesPaymentEntity", extras["customs_settings"])
+        self.assertNotIn("branchCode", extras["origin"])
+        self.assertNotIn("branchCode", extras["destination"])
 
     def test_envia_module_json_payload(self):
         partner = self.env.company.partner_id

@@ -27,6 +27,10 @@
                 <field name="envia_module" invisible="1"/>
                 <field name="envia_show_quote_archive" invisible="1"/>
                 <field name="envia_can_reship" invisible="1"/>
+                <field name="envia_identification_number_origin" invisible="1"/>
+                <field name="envia_destination_identification_number" invisible="1"/>
+                <field name="envia_export_reason" invisible="1"/>
+                <field name="envia_duties_payment_entity" invisible="1"/>
                 <div class="alert alert-success mb-0 rounded-0" role="alert"
                      invisible="envia_status != 'shipped'">
                     <field name="envia_summary" nolabel="1" readonly="1"/>

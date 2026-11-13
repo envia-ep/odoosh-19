@@ -97,6 +97,13 @@ class PayloadMapper:
         )
 
     @staticmethod
+    def physical_merchandise_order_lines(order):
+        """Physical lines only (ignore services/virtual) for customs items."""
+        return PayloadMapper.merchandise_order_lines(order).filtered(
+            lambda line: line.product_id.type != "service"
+        )
+
+    @staticmethod
     def normalize_package_content(content, max_length=PACKAGE_CONTENT_MAX_LENGTH):
         if not content:
             return "General merchandise"
@@ -363,6 +370,7 @@ class PayloadMapper:
             currency=values.get("currency") or "MXN",
             carriers=values.get("carriers") or "all",
             expected_drop_off=values.get("expected_drop_off"),
+            filter_by_route=values.get("filter_by_route", True),
             origin_contact=values.get("origin_contact"),
             destination_contact=values.get("destination_contact"),
             items=values.get("items") or [],
@@ -457,10 +465,15 @@ def get_envia_adapter(company):
         "envia.action_envia_open_shipping_rules_settings",
         raise_if_not_found=False,
     )
+    products_action = company.env.ref(
+        "envia.action_envia_open_products_edit_bulk",
+        raise_if_not_found=False,
+    )
     return EnviaOfficialAdapter(
         client,
         shop_id=shop_id,
         default_carriers=company.envia_default_carriers or "dhl,fedex,estafeta",
         checkout_settings_action_id=checkout_action.id if checkout_action else None,
         label_settings_action_id=label_action.id if label_action else None,
+        products_edit_bulk_action_id=products_action.id if products_action else None,
     )

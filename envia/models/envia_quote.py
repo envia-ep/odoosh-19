@@ -4,6 +4,7 @@ from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
 from ..const import ENVIA_LOCATION_TYPE_SELECTION
+from ..services.international import DUTIES_PAYMENT_SELECTION, export_reason_selection
 from ..services.payload_mapper import PayloadMapper
 
 
@@ -67,6 +68,18 @@ class EnviaQuote(models.Model):
     envia_enable_labels = fields.Boolean(related="company_id.envia_enable_labels")
     envia_show_quote_archive = fields.Boolean(related="company_id.envia_show_quote_archive")
     shipment_ids = fields.One2many("envia.shipment", "quote_id", string="Shipments")
+    identification_number_origin = fields.Char(string="Origin Tax ID")
+    destination_identification_number = fields.Char(string="Destination Tax ID")
+    export_reason = fields.Selection(
+        selection=lambda self: export_reason_selection(),
+        string="Export Reason",
+        default="sale",
+    )
+    duties_payment_entity = fields.Selection(
+        selection=DUTIES_PAYMENT_SELECTION,
+        string="Duties Payer",
+        default="sender",
+    )
 
     @api.depends(
         "selected_service_id",
@@ -152,17 +165,18 @@ class EnviaQuote(models.Model):
             raise UserError(_("This quote has expired. Request a new quote."))
 
     _DROP_OFF_REQUIRED_BRANCHES = {
-        # Origin=branch means "drop at any carrier branch"; only the destination
-        # ocurre branch is a concrete selectable code sent as branch_code.
-        1: (),
+        1: ("origin",),
         2: ("destination",),
-        3: ("destination",),
+        3: ("origin", "destination"),
     }
 
     def _branch_fields_complete(self):
         self.ensure_one()
-        if self.destination_location_type == "branch" and not self.destination_branch_code:
-            return False
+        for side in ("origin", "destination"):
+            if getattr(self, f"{side}_location_type") == "branch" and not getattr(
+                self, f"{side}_branch_code"
+            ):
+                return False
         return True
 
     def _route_matches_selected_service(self):
@@ -264,13 +278,6 @@ class EnviaQuote(models.Model):
         self._check_quote_valid()
         if not self.selected_service_id:
             raise UserError(_("Select a carrier service before creating the shipment."))
-        if self.destination_location_type == "branch" and not self.destination_branch_code:
-            raise UserError(
-                _(
-                    "Pickup destination is missing on this quote. "
-                    "Reopen Ship with Envia and select the branch again."
-                )
-            )
         selected = self.selected_service_id
         if selected.drop_off:
             for side in self._DROP_OFF_REQUIRED_BRANCHES.get(selected.drop_off, ()):

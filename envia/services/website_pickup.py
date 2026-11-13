@@ -9,7 +9,7 @@ from odoo.exceptions import UserError
 
 from .i18n import _
 
-from .dto import QuoteRequest, QuoteResponse, QuoteService
+from .dto import AdditionalService, QuoteRequest, QuoteResponse, QuoteService
 from .envia_client import EnviaClient
 from .envia_config import get_envia_checkout_path
 from .envia_official_adapter import EnviaOfficialAdapter
@@ -47,7 +47,7 @@ class WebsitePickupService:
             request.destination_contact.branch_code = None
         if request.origin_contact:
             request.origin_contact.branch_code = None
-        body = self._checkout_body(order.company_id, request)
+        body = self._checkout_body(order.company_id, request, order=order)
         services = EnviaOfficialAdapter._parse_checkout_rates(body, request)
         ship_services = [service for service in services if not service.drop_off]
         options = []
@@ -107,7 +107,9 @@ class WebsitePickupService:
             return []
         # Same probe as envia.quote.wizard: unlock ocurre rates + nested branches.
         request.destination_contact.branch_code = "PROBE"
-        body = self._checkout_body(order.company_id, request, force_pickup=True)
+        body = self._checkout_body(
+            order.company_id, request, force_pickup=True, order=order
+        )
         rates = EnviaOfficialAdapter._normalize_checkout_rates_body(body)
         options: list[dict[str, Any]] = []
         seen: set[tuple[str, str, str]] = set()
@@ -171,22 +173,49 @@ class WebsitePickupService:
         )
         return options
 
-    def _checkout_body(self, company, request: QuoteRequest, *, force_pickup: bool = False):
+    @staticmethod
+    def _cart_cod_amount(order) -> float:
+        """Cart total for COD (merchandise only; shipping is quoted separately)."""
+        lines = order.order_line.filtered(lambda line: not line.is_delivery)
+        return float(sum(lines.mapped("price_total")))
+
+    @staticmethod
+    def _option_supports_cod(service: QuoteService, expected_amount: float) -> bool:
+        """True when checkout rate echoes the COD amount we sent."""
+        amount = service.cash_on_delivery_amount
+        if amount is None or expected_amount <= 0:
+            return False
+        return abs(float(amount) - float(expected_amount)) < 0.01
+
+    def _checkout_body(
+        self,
+        company,
+        request: QuoteRequest,
+        *,
+        force_pickup: bool = False,
+        order=None,
+    ):
         adapter = get_envia_adapter(company)
         if not adapter.shop_id:
             raise UserError(
                 _("Envia Shop ID is missing. Reconnect the Envia.com integration.")
             )
+        if order is not None:
+            cod_amount = self._cart_cod_amount(order)
+            if cod_amount > 0:
+                request.additional_services = [
+                    *request.additional_services,
+                    AdditionalService(
+                        service="cash_on_delivery",
+                        amount=cod_amount,
+                    ),
+                ]
         payload = EnviaOfficialAdapter._build_checkout_payload(request)
         if force_pickup or (
             request.destination_contact and request.destination_contact.branch_code
         ):
-            extras = EnviaOfficialAdapter._build_additional_services(
-                request.origin_contact,
-                request.destination_contact,
-                request.additional_services,
-                expected_drop_off=2,
-            )
+            # Top-level pickup flags only — COD stays under package.additionalServices.
+            extras = EnviaOfficialAdapter._pickup_point_services_for_drop_off(2)
             if extras:
                 payload["additionalServices"] = extras
         return adapter.client._post(get_envia_checkout_path(adapter.shop_id), payload)
@@ -467,7 +496,9 @@ class WebsitePickupService:
             try:
                 request = self._build_pickup_quote_request(order, proxy)
                 request.expected_drop_off = None
-                body = self._checkout_body(order.company_id, request, force_pickup=True)
+                body = self._checkout_body(
+                    order.company_id, request, force_pickup=True, order=order
+                )
                 services = EnviaOfficialAdapter._parse_checkout_rates(body, request)
             except UserError:
                 continue
@@ -788,6 +819,7 @@ class WebsitePickupService:
             "branch_code": "",
             "quote_id": quote_id,
             "drop_off": service.drop_off or 0,
+            "cod": self._option_supports_cod(service, self._cart_cod_amount(order)),
         }
 
     def _serialize_pickup_option(
@@ -834,4 +866,5 @@ class WebsitePickupService:
             "branch_code": branch["branch_code"],
             "distance": branch.get("distance"),
             "drop_off": service.drop_off or 2,
+            "cod": self._option_supports_cod(service, self._cart_cod_amount(order)),
         }

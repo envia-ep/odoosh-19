@@ -3,6 +3,7 @@ from . import envia_carrier
 from . import envia_warehouse_origin
 from . import onboarding_onboarding
 from . import onboarding_onboarding_step
+from . import product_template
 from . import res_company
 from . import res_config_settings
 from . import res_users_apikeys

@@ -80,6 +80,45 @@ def test_build_checkout_payload_uses_request_weight_unit():
     assert payload["package"]["weightUnit"] == "LB"
 
 
+def test_build_checkout_payload_sales_requests_both_pickup_services():
+    request = QuoteRequest(
+        origin_postal_code="67192",
+        origin_country="MX",
+        destination_postal_code="03100",
+        destination_country="MX",
+        weight=1.0,
+        content="Package",
+        filter_by_route=False,
+    )
+    payload = EnviaOfficialAdapter._build_checkout_payload(request)
+    assert payload["additionalServices"] == [
+        {"service": "pickup_point_pickup"},
+        {"service": "pickup_point_delivery"},
+    ]
+
+
+def test_build_checkout_payload_package_cash_on_delivery():
+    from odoo.addons.envia.services.dto import AdditionalService
+
+    request = QuoteRequest(
+        origin_postal_code="67192",
+        origin_country="MX",
+        destination_postal_code="03100",
+        destination_country="MX",
+        weight=1.0,
+        content="Package",
+        additional_services=[
+            AdditionalService(service="cash_on_delivery", amount=500),
+        ],
+    )
+    payload = EnviaOfficialAdapter._build_checkout_payload(request)
+    assert payload["package"]["additionalServices"] == [
+        {"service": "cash_on_delivery", "data": {"amount": 500}},
+    ]
+    assert "additionalServices" not in payload
+
+
+
 def test_build_quote_request_from_values_normalizes_low_weight():
     request = PayloadMapper.build_quote_request_from_values(
         {

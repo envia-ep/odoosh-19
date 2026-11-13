@@ -1,3 +1,5 @@
+import json
+
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 from odoo.tools import format_amount
@@ -7,6 +9,25 @@ from ..services.dto import Contact
 from ..services.envia_client import EnviaClient
 from ..services.envia_geocodes_client import EnviaGeocodesClient
 from ..services.envia_official_adapter import EnviaOfficialAdapter
+from ..services.international import (
+    DUTIES_PAYMENT_SELECTION,
+    export_reason_selection,
+    is_international,
+    normalize_export_reason,
+)
+from ..services.origin_branches import (
+    apply_arrival,
+    cache_key,
+    catalog_body,
+    catalog_package,
+    choose_route,
+    filter_branches,
+    is_destination_branch,
+    needs_origin_branch,
+    normalize_branches,
+    numeric_coord,
+    should_reload,
+)
 from ..services.payload_mapper import PayloadMapper, get_envia_adapter
 
 
@@ -38,6 +59,8 @@ class EnviaQuoteWizardBranch(models.TransientModel):
     city = fields.Char()
     zip = fields.Char(string="Postal Code")
     distance = fields.Float(string="Distance (km)", digits=(16, 1))
+    latitude = fields.Float(digits=(16, 6))
+    longitude = fields.Float(digits=(16, 6))
     state_code = fields.Char()
     country_code = fields.Char()
     carrier = fields.Char()
@@ -125,9 +148,7 @@ class EnviaQuoteWizardBranch(models.TransientModel):
         self.is_selected = True
         wizard = self.wizard_id
         wizard.with_context(envia_apply_branch=True)._apply_branch_to_side(self)
-        # Rate-first: after the destination ocurre branch is chosen, persist it on
-        # the quote; origin stays "any branch" without a concrete code.
-        if self.side == "destination" and wizard.quote_id:
+        if wizard.quote_id and wizard._side_needs_branch_selection(self.side):
             wizard.quote_id.write(wizard._quote_location_values())
             selected = wizard.service_line_ids.filtered("is_selected")[:1]
             if selected:
@@ -402,11 +423,27 @@ class EnviaQuoteWizard(models.TransientModel):
     selected_carrier_code = fields.Char(compute="_compute_branch_ui_state")
     show_origin_branch_picker = fields.Boolean(compute="_compute_branch_ui_state")
     show_destination_branch_picker = fields.Boolean(compute="_compute_branch_ui_state")
+    origin_branch_rate_key = fields.Char()
+    origin_branch_map_json = fields.Text(compute="_compute_origin_branch_map")
+    destination_branch_map_json = fields.Text(compute="_compute_destination_branch_map")
     can_generate_label = fields.Boolean(compute="_compute_form_state")
+    label_blocking_message = fields.Char(compute="_compute_form_state")
     sale_order_state = fields.Selection(related="sale_order_id.state", readonly=True)
     origin_readonly = fields.Boolean(compute="_compute_origin_readonly")
     destination_partner_readonly = fields.Boolean(
         compute="_compute_destination_partner_readonly",
+    )
+    identification_number_origin = fields.Char(string="Origin Tax ID")
+    destination_identification_number = fields.Char(string="Destination Tax ID")
+    export_reason = fields.Selection(
+        selection=lambda self: export_reason_selection(),
+        string="Export Reason",
+        default="sale",
+    )
+    duties_payment_entity = fields.Selection(
+        selection=DUTIES_PAYMENT_SELECTION,
+        string="Duties Payer",
+        default="sender",
     )
 
     @api.depends("service_line_ids")
@@ -441,11 +478,13 @@ class EnviaQuoteWizard(models.TransientModel):
                 continue
             selected_rate = wizard.service_line_ids.filtered("is_selected")[:1]
             wizard.selected_carrier_code = selected_rate.carrier if selected_rate else False
-            # Origin=branch: drop at any branch of the selected carrier — no picker.
-            # Destination=branch: pick ocurre after the rate/service is selected.
-            wizard.show_origin_branch_picker = False
+            drop_off = int(selected_rate.drop_off or 0) if selected_rate else 0
+            wizard.show_origin_branch_picker = bool(
+                selected_rate
+                and needs_origin_branch(selected_rate.carrier, drop_off)
+            )
             wizard.show_destination_branch_picker = bool(
-                wizard.destination_location_type == "branch" and selected_rate
+                selected_rate and is_destination_branch(drop_off)
             )
             wizard.origin_branch_count = len(wizard.origin_branch_line_ids)
             wizard.destination_branch_count = len(wizard.destination_branch_line_ids)
@@ -454,6 +493,85 @@ class EnviaQuoteWizard(models.TransientModel):
             wizard.origin_selected_branch_label = origin_selected.name if origin_selected else False
             wizard.destination_selected_branch_label = (
                 destination_selected.name if destination_selected else False
+            )
+
+    def _branch_map_points(self, lines):
+        points = []
+        for line in lines:
+            code = (line.branch_code or "").strip()
+            if not code:
+                continue
+            lat = numeric_coord(line.latitude)
+            lng = numeric_coord(line.longitude)
+            if lat == 0 and lng == 0:
+                lat, lng = None, None
+            points.append(
+                {
+                    "code": code,
+                    # origin_point_id for ship payload = branch_code
+                    "label": " - ".join(
+                        part
+                        for part in (code, line.name, line.street, line.city, line.zip)
+                        if part
+                    ),
+                    "name": line.name or "",
+                    "street": line.street or "",
+                    "city": line.city or "",
+                    "locality": line.city or "",
+                    "state": line.state_code or "",
+                    "postal_code": line.zip or "",
+                    "latitude": lat,
+                    "longitude": lng,
+                    "selected": bool(line.is_selected),
+                    "carrier": line.carrier or "",
+                }
+            )
+        return points
+
+    @api.depends(
+        "show_origin_branch_picker",
+        "origin_branch_line_ids",
+        "origin_branch_line_ids.branch_code",
+        "origin_branch_line_ids.latitude",
+        "origin_branch_line_ids.longitude",
+        "origin_branch_line_ids.name",
+        "origin_branch_line_ids.street",
+        "origin_branch_line_ids.city",
+        "origin_branch_line_ids.zip",
+        "origin_branch_line_ids.state_code",
+        "origin_branch_line_ids.is_selected",
+        "origin_branch_line_ids.carrier",
+    )
+    def _compute_origin_branch_map(self):
+        for wizard in self:
+            if not wizard.show_origin_branch_picker:
+                wizard.origin_branch_map_json = False
+                continue
+            wizard.origin_branch_map_json = json.dumps(
+                wizard._branch_map_points(wizard.origin_branch_line_ids)
+            )
+
+    @api.depends(
+        "show_destination_branch_picker",
+        "destination_branch_line_ids",
+        "destination_branch_line_ids.branch_code",
+        "destination_branch_line_ids.latitude",
+        "destination_branch_line_ids.longitude",
+        "destination_branch_line_ids.name",
+        "destination_branch_line_ids.street",
+        "destination_branch_line_ids.city",
+        "destination_branch_line_ids.zip",
+        "destination_branch_line_ids.state_code",
+        "destination_branch_line_ids.is_selected",
+        "destination_branch_line_ids.carrier",
+    )
+    def _compute_destination_branch_map(self):
+        for wizard in self:
+            if not wizard.show_destination_branch_picker:
+                wizard.destination_branch_map_json = False
+                continue
+            wizard.destination_branch_map_json = json.dumps(
+                wizard._branch_map_points(wizard.destination_branch_line_ids)
             )
 
     @api.depends("origin_address_line_ids", "destination_address_line_ids")
@@ -809,6 +927,10 @@ class EnviaQuoteWizard(models.TransientModel):
         "weight",
         "selected_service_label",
         "sale_order_id.company_id.envia_enable_labels",
+        "is_international_route",
+        "identification_number_origin",
+        "destination_identification_number",
+        "export_reason",
     )
     def _compute_form_state(self):
         for wizard in self:
@@ -823,10 +945,21 @@ class EnviaQuoteWizard(models.TransientModel):
             label_errors = wizard._collect_validation_errors(
                 require_branches=wizard.destination_location_type == "branch"
             )
+            if wizard.is_international_route:
+                label_errors = label_errors + wizard._collect_international_label_errors()
+            if not wizard.envia_enable_labels:
+                label_errors = [
+                    _("Enable label generation in Settings > Envia.com.")
+                ] + label_errors
             wizard.can_generate_label = bool(
                 wizard.envia_enable_labels
                 and wizard.selected_service_label
                 and not label_errors
+            )
+            wizard.label_blocking_message = (
+                label_errors[0]
+                if wizard.selected_service_label and label_errors
+                else False
             )
             wizard.validation_summary = "\n".join(f"• {error}" for error in errors) if errors else False
             wizard.blocking_message = errors[0] if errors else False
@@ -835,15 +968,15 @@ class EnviaQuoteWizard(models.TransientModel):
     def _compute_route_flags(self):
         company = self.env.company
         for wizard in self:
-            wizard.is_international_route = bool(
-                wizard.origin_country_id
-                and wizard.destination_country_id
-                and wizard.origin_country_id != wizard.destination_country_id
+            origin_code = wizard.origin_country_id.code if wizard.origin_country_id else ""
+            destination_code = (
+                wizard.destination_country_id.code if wizard.destination_country_id else ""
             )
+            wizard.is_international_route = is_international(origin_code, destination_code)
             wizard.is_domestic_route = bool(
-                wizard.origin_country_id
-                and wizard.destination_country_id
-                and wizard.origin_country_id == wizard.destination_country_id
+                origin_code
+                and destination_code
+                and not wizard.is_international_route
             )
             wizard.is_sandbox = company._envia_is_sandbox()
 
@@ -955,6 +1088,24 @@ class EnviaQuoteWizard(models.TransientModel):
             defaults["content"] = PayloadMapper.sale_order_package_content(sale_order)
             defaults["declared_value"] = PayloadMapper.sale_order_declared_value(sale_order)
             defaults["weight"] = PayloadMapper.sale_order_package_weight(sale_order)
+            defaults["identification_number_origin"] = (
+                sale_order.envia_identification_number_origin
+                or (origin_partner.vat if origin_partner else False)
+                or company.partner_id.vat
+            )
+            defaults["destination_identification_number"] = (
+                sale_order.partner_shipping_id.vat
+                if sale_order.partner_shipping_id
+                else False
+            )
+            defaults["export_reason"] = sale_order.envia_export_reason or "sale"
+            defaults["duties_payment_entity"] = (
+                sale_order.envia_duties_payment_entity or "sender"
+            )
+        else:
+            defaults["identification_number_origin"] = (
+                (origin_partner.vat if origin_partner else False) or company.partner_id.vat
+            )
         if not defaults.get("origin_country_id") and company.country_id:
             defaults["origin_country_id"] = company.country_id.id
         if not company.envia_enable_branches:
@@ -1010,8 +1161,8 @@ class EnviaQuoteWizard(models.TransientModel):
         return None
 
     def _rate_drop_off_matches_route(self, drop_off):
-        expected = self._expected_route_drop_off()
-        return (drop_off or 0) == (expected or 0)
+        # Sales lists every dropOff; never wipe rates on location-type change.
+        return True
 
     def _clear_stale_rates_for_route(self):
         """Drop cached/quoted rates when Ship/Pickup no longer matches."""
@@ -1527,11 +1678,181 @@ class EnviaQuoteWizard(models.TransientModel):
         selected = self.service_line_ids.filtered("is_selected")[:1]
         if not selected or not selected.carrier:
             return
-        # Rate-first Branch/B2B: after service, load only destination ocurre branches.
+        if needs_origin_branch(selected.carrier, selected.drop_off):
+            try:
+                # Always refresh on rate select so the origin map gets points.
+                self._load_origin_branches_for_rate(selected, filters_changed=True)
+            except UserError as error:
+                self._set_branch_load_error("origin_branch_load_error", str(error))
+        elif self.origin_branch_line_ids or self.origin_branch_rate_key:
+            self.origin_branch_line_ids.unlink()
+            self.origin_branch_rate_key = False
+            self._set_branch_load_error("origin_branch_load_error", False)
         if self._side_needs_branch_selection("destination") and not self._branch_lines(
             "destination"
         ):
             self._try_load_branch_side("destination", carrier_code=selected.carrier)
+
+    def _preferred_origin_branch_code(self, carrier):
+        key = f"envia.origin_branch.{self.env.company.id}.{carrier}"
+        return (self.env["ir.config_parameter"].sudo().get_param(key) or "").strip()
+
+    def _remember_origin_branch(self, carrier, code):
+        if not carrier or not code:
+            return
+        key = f"envia.origin_branch.{self.env.company.id}.{carrier}"
+        self.env["ir.config_parameter"].sudo().set_param(key, code)
+
+    def _load_origin_branches_for_rate(self, selected, filters_changed=False):
+        """POST OXXO / catalog for the selected drop-off rate."""
+        self.ensure_one()
+        key = cache_key(selected.carrier, selected.service_name, selected.drop_off)
+        if not should_reload(
+            self.origin_branch_rate_key,
+            key,
+            filters_changed,
+            bool(self.origin_branch_line_ids),
+        ):
+            return
+        company = self.env.company
+        token = company._envia_get_shipping_api_token()
+        if not token:
+            raise UserError(_("Configure your Envia shipping API token in Settings first."))
+        country = self.origin_country_id
+        if not country:
+            raise UserError(_("Select a country before loading branches."))
+        # ponytail: catalog/oxxo only; by-address needs carrierId on the rate line.
+        route = choose_route(selected.service_name, 0, False)
+        state = self.origin_state_id
+        envia_state = EnviaOfficialAdapter.envia_state_code(
+            country.code,
+            state.code if state else None,
+        ) or None
+        packages = [catalog_package(PayloadMapper.normalize_package_weight(self.weight))]
+        partner = self.origin_partner_id
+        lat = numeric_coord(getattr(partner, "partner_latitude", None)) if partner else None
+        lng = numeric_coord(getattr(partner, "partner_longitude", None)) if partner else None
+        body = catalog_body(
+            country.code,
+            self.origin_postal_code,
+            envia_state,
+            self.origin_city,
+            None,
+            lat,
+            lng,
+            self.origin_street,
+            packages,
+        )
+        client = EnviaClient(company._envia_get_base_url(), token)
+        raw = client.post_origin_branches(
+            route=route,
+            queries_base_url=company._envia_get_queries_base_url(),
+            carrier_base_url=company._envia_get_base_url(),
+            carrier=selected.carrier,
+            country_code=country.code,
+            payload=body,
+        )
+        branches = normalize_branches(raw, oxxo=route == "oxxo")
+        branches = filter_branches(branches, "")
+        filters_active = bool(
+            body.get("state") or body.get("locality") or body.get("branchType")
+        )
+        origin_place = {
+            "postal_code": self.origin_postal_code,
+            "city": self.origin_city,
+            "locality": self.origin_city,
+            "state": envia_state,
+            "street": self.origin_street,
+            "latitude": lat,
+            "longitude": lng,
+        }
+        # UI filters are client-side; API state/locality only narrows the catalog.
+        # Rank against originPlace whenever the catalog path has no distance order.
+        branches = apply_arrival(
+            branches,
+            route=route,
+            remembered_code=self._preferred_origin_branch_code(selected.carrier),
+            origin_place=origin_place,
+            filters_active=False if route == "catalog" else filters_active,
+        )
+        chosen = branches[0] if branches else None
+        self.origin_branch_line_ids.unlink()
+        Branch = self.env["envia.quote.wizard.branch"]
+        for entry in branches:
+            Branch.create(
+                {
+                    "wizard_id": self.id,
+                    "side": "origin",
+                    "external_id": entry["code"],
+                    "branch_code": entry["code"],
+                    "name": entry["name"] or entry["code"],
+                    "street": entry["street"],
+                    "city": entry["city"],
+                    "zip": entry["postal_code"],
+                    "state_code": entry["state"],
+                    "country_code": country.code,
+                    "carrier": selected.carrier,
+                    "latitude": entry["latitude"] if entry["latitude"] is not None else False,
+                    "longitude": entry["longitude"] if entry["longitude"] is not None else False,
+                    "distance": entry["distance"] or 0.0,
+                    "is_selected": False,
+                }
+            )
+        self.origin_branch_rate_key = key
+        if not branches:
+            self._set_branch_load_error(
+                "origin_branch_load_error",
+                _("No origin pickup points available."),
+            )
+        else:
+            self._set_branch_load_error("origin_branch_load_error", False)
+        # Persist nearest/remembered branch onto the quote (label/create reads envia_module).
+        if chosen:
+            match = self.origin_branch_line_ids.filtered(
+                lambda line: line.branch_code == chosen["code"]
+            )[:1]
+            if match:
+                self._remember_origin_branch(selected.carrier, chosen["code"])
+                match.action_select_branch()
+
+    def action_select_origin_branch_code(self, code):
+        """Map marker or select sets the origin branch."""
+        self.ensure_one()
+        code = (code or "").strip()
+        match = self.origin_branch_line_ids.filtered(
+            lambda line: line.branch_code == code
+        )[:1]
+        if match:
+            self._remember_origin_branch(match.carrier, code)
+            return match.action_select_branch()
+        return True
+
+    def action_select_destination_branch_code(self, code):
+        """Map marker or select sets the destination branch."""
+        self.ensure_one()
+        code = (code or "").strip()
+        match = self.destination_branch_line_ids.filtered(
+            lambda line: line.branch_code == code
+        )[:1]
+        if match:
+            return match.action_select_branch()
+        return True
+
+    def _sync_location_types_from_selected_rate(self):
+        """Location types follow the selected service dropOff (no UI radios)."""
+        self.ensure_one()
+        selected = self.service_line_ids.filtered("is_selected")[:1]
+        drop_off = int(selected.drop_off or 0) if selected else 0
+        vals = {
+            "origin_location_type": "branch" if drop_off in (1, 3) else "address",
+            "destination_location_type": "branch" if drop_off in (2, 3) else "address",
+        }
+        # Skip route refresh: _on_route_type_changed would unlink these rate lines.
+        self.with_context(
+            envia_skip_auto_quote=True,
+            envia_skip_branch_autoload=True,
+            envia_skip_route_carrier_refresh=True,
+        ).write(vals)
 
     def _clear_branch_lines(self, sides=None):
         self.ensure_one()
@@ -1889,6 +2210,13 @@ class EnviaQuoteWizard(models.TransientModel):
 
     def action_load_origin_branches(self):
         self.ensure_one()
+        selected = self.service_line_ids.filtered("is_selected")[:1]
+        if selected and needs_origin_branch(selected.carrier, selected.drop_off):
+            try:
+                self._load_origin_branches_for_rate(selected, filters_changed=True)
+            except UserError as error:
+                self._set_branch_load_error("origin_branch_load_error", str(error))
+            return self._wizard_action()
         if self._uses_branch_route() and not self.branch_carriers_probed:
             self._refresh_available_branch_carriers()
         self._try_load_branch_side("origin", carrier_code=self._pickup_carrier_code())
@@ -2155,6 +2483,18 @@ class EnviaQuoteWizard(models.TransientModel):
                         or "",
                     ),
                     "distance": entry.get("distance"),
+                    "latitude": numeric_coord(
+                        entry.get("latitude")
+                        or entry.get("lat")
+                        or address_data.get("latitude")
+                    )
+                    or 0.0,
+                    "longitude": numeric_coord(
+                        entry.get("longitude")
+                        or entry.get("lng")
+                        or address_data.get("longitude")
+                    )
+                    or 0.0,
                     "state_code": (
                         address_data.get("state")
                         or entry.get("state")
@@ -2197,11 +2537,12 @@ class EnviaQuoteWizard(models.TransientModel):
         return None
 
     def _pickup_route_branches_ready(self):
-        """True when the destination ocurre branch is selected (origin is optional)."""
+        """True when every required branch side for the selected dropOff is set."""
         self.ensure_one()
-        if not self._side_needs_branch_selection("destination"):
-            return not self._uses_branch_route() or self.origin_location_type == "branch"
-        return bool(self._get_selected_branch("destination"))
+        for side in self._branch_sides_required_for_confirm():
+            if not self._get_selected_branch(side):
+                return False
+        return True
 
     def _restrict_branch_lines_to_carrier(self, carrier):
         """Keep only the selected carrier on the destination ocurre list."""
@@ -2284,6 +2625,8 @@ class EnviaQuoteWizard(models.TransientModel):
     def _align_pickup_carrier(self, branch):
         """Destination ocurre fixes the carrier; keep only that carrier's branches."""
         self.ensure_one()
+        if branch.side != "destination":
+            return
         carrier = branch.carrier
         if not carrier:
             return
@@ -2619,17 +2962,64 @@ class EnviaQuoteWizard(models.TransientModel):
                 )
         return errors
 
-    def _branch_sides_required_for_confirm(self):
-        """Only destination ocurre needs a concrete branch selection."""
+    def _collect_international_label_errors(self):
+        """Hard requirements for international generate only (not checkout rates).
+
+        HS ``productCode`` is validated by Envia ``label/create`` (RedirectWarning
+        with Products bulk-edit). Do not block the wizard on Odoo ``envia_product_code``.
+        """
         self.ensure_one()
-        if self.destination_location_type != "branch":
-            return set()
-        return {"destination"}
+        errors = []
+        if not (self.identification_number_origin or "").strip():
+            errors.append(_("Origin tax ID is required for international shipments."))
+        destination_tax = ""
+        if self.sale_order_id:
+            destination_tax = self.sale_order_id._envia_resolve_destination_tax_id(
+                self.quote_id
+            )
+        elif (self.destination_identification_number or "").strip():
+            destination_tax = self.destination_identification_number.strip()
+        else:
+            partner = self.destination_partner_id
+            destination_tax = (partner.vat or "").strip() if partner else ""
+        if not destination_tax:
+            errors.append(
+                _(
+                    "Destination tax ID is required for international shipments. "
+                    "Set the fiscal ID (VAT) on the delivery address."
+                )
+            )
+        if not (self.export_reason or "").strip():
+            errors.append(_("Export reason is required for international shipments."))
+        if self.declared_value is not None and self.declared_value <= 0:
+            errors.append(
+                _("Declared value must be greater than zero for international shipments.")
+            )
+        return errors
+
+    def _branch_sides_required_for_confirm(self):
+        """Sides that need a concrete branch for the selected dropOff."""
+        self.ensure_one()
+        sides = set()
+        selected = self.service_line_ids.filtered("is_selected")[:1]
+        if not selected:
+            return sides
+        drop_off = int(selected.drop_off or 0)
+        if needs_origin_branch(selected.carrier, drop_off):
+            sides.add("origin")
+        if is_destination_branch(drop_off):
+            sides.add("destination")
+        return sides
 
     def _side_needs_branch_selection(self, side):
-        """Origin=branch is 'any drop-off'; only destination is selectable."""
         self.ensure_one()
-        return side == "destination" and self.destination_location_type == "branch"
+        selected = self.service_line_ids.filtered("is_selected")[:1]
+        if not selected:
+            return False
+        drop_off = int(selected.drop_off or 0)
+        if side == "origin":
+            return needs_origin_branch(selected.carrier, drop_off)
+        return is_destination_branch(drop_off)
 
     def _apply_package_dimensions_preview(self, adapter, items):
         # ponytail: package-dimensions API is off for now (token/host issues).
@@ -2652,9 +3042,46 @@ class EnviaQuoteWizard(models.TransientModel):
 
     def _validate_before_label(self):
         self.ensure_one()
-        self._raise_validation_errors(
-            self._collect_validation_errors(require_branches=True)
-        )
+        errors = self._collect_validation_errors(require_branches=True)
+        if self.is_international_route:
+            errors = errors + self._collect_international_label_errors()
+        self._raise_validation_errors(errors)
+
+    def _customs_persist_values(self):
+        self.ensure_one()
+        if self.sale_order_id:
+            destination_tax = self.sale_order_id._envia_resolve_destination_tax_id(
+                self.quote_id
+            )
+        else:
+            partner = self.destination_partner_id
+            destination_tax = (partner.vat or "").strip() if partner else ""
+        return {
+            "identification_number_origin": (self.identification_number_origin or "").strip()
+            or False,
+            "destination_identification_number": destination_tax or False,
+            "export_reason": normalize_export_reason(self.export_reason) or "sale",
+            "duties_payment_entity": self.duties_payment_entity or "sender",
+        }
+
+    def _persist_customs_to_quote_and_order(self):
+        self.ensure_one()
+        values = self._customs_persist_values()
+        if self.quote_id:
+            self.quote_id.write(values)
+        if self.sale_order_id:
+            self.sale_order_id.write(
+                {
+                    "envia_identification_number_origin": values[
+                        "identification_number_origin"
+                    ],
+                    "envia_destination_identification_number": values[
+                        "destination_identification_number"
+                    ],
+                    "envia_export_reason": values["export_reason"],
+                    "envia_duties_payment_entity": values["duties_payment_entity"],
+                }
+            )
 
     def _get_quote_carriers(self):
         """Carrier filter for checkout.
@@ -2770,6 +3197,7 @@ class EnviaQuoteWizard(models.TransientModel):
                 "currency": self.currency_id.name,
                 "carriers": self._get_quote_carriers(),
                 "expected_drop_off": expected_drop_off,
+                "filter_by_route": False,
                 "origin_contact": origin_contact,
                 "destination_contact": destination_contact,
                 "items": items,
@@ -2799,6 +3227,7 @@ class EnviaQuoteWizard(models.TransientModel):
                 "currency_id": self.currency_id.id,
                 "carriers": self._get_quote_carriers(),
                 **self._quote_location_values(),
+                **self._customs_persist_values(),
             },
         )
         self.write({"quote_id": quote.id})
@@ -2859,6 +3288,9 @@ class EnviaQuoteWizard(models.TransientModel):
         self.ensure_one()
         if not self._envia_branches_enabled():
             return False
+        selected = self.service_line_ids.filtered("is_selected")[:1]
+        if selected and int(selected.drop_off or 0):
+            return True
         return (
             self.origin_location_type == "branch"
             or self.destination_location_type == "branch"
@@ -2907,6 +3339,9 @@ class EnviaQuoteWizard(models.TransientModel):
         if not selected:
             return False
         selected.is_selected = True
+        self._sync_location_types_from_selected_rate()
+        if previous_carrier and previous_carrier != selected.carrier:
+            self._clear_branch_lines()
         self._apply_wizard_rate_to_quote(selected)
         self._load_branches_for_selected_carrier()
         return False
@@ -2949,13 +3384,17 @@ class EnviaQuoteWizard(models.TransientModel):
             self._validate_before_quote()
             self._raise_validation_errors(
                 self._collect_validation_errors(
-                    require_branches=self.destination_location_type == "branch"
+                    require_branches=bool(self._branch_sides_required_for_confirm())
                 )
             )
             self._perform_get_quote(clear_branch_lines=False)
             selected = self.service_line_ids.filtered("is_selected")[:1]
         if not selected:
             raise UserError(_("Choose a shipping rate to continue."))
+        # Always require concrete branch codes for dropOff 1/2/3 (label/create).
+        self._raise_validation_errors(
+            self._collect_validation_errors(require_branches=True)
+        )
         quote = self.quote_id
         quote.write(self._quote_location_values())
         return self._apply_wizard_rate_to_quote(selected)
@@ -3136,6 +3575,16 @@ class EnviaQuoteWizard(models.TransientModel):
             values["destination_country_id"] = destination_country.id
         if quote.currency_id:
             values["currency_id"] = quote.currency_id.id
+        if quote.identification_number_origin:
+            values["identification_number_origin"] = quote.identification_number_origin
+        if quote.destination_identification_number:
+            values["destination_identification_number"] = (
+                quote.destination_identification_number
+            )
+        if quote.export_reason:
+            values["export_reason"] = quote.export_reason
+        if quote.duties_payment_entity:
+            values["duties_payment_entity"] = quote.duties_payment_entity
         State = self.env["res.country.state"]
         for side in ("origin", "destination"):
             state_code = getattr(quote, f"{side}_state")
@@ -3188,7 +3637,9 @@ class EnviaQuoteWizard(models.TransientModel):
     def action_confirm_selection(self):
         """Persist selected rate, apply shipping cost, then create the label."""
         self.ensure_one()
+        self._validate_before_label()
         self._finalize_quote_selection()
+        self._persist_customs_to_quote_and_order()
         if self.quote_id:
             self.quote_id._retire_sibling_quotes()
         self._apply_shipping_cost_to_order()
@@ -3198,7 +3649,7 @@ class EnviaQuoteWizard(models.TransientModel):
                 lambda item: item.picking_type_code == "outgoing"
                 and item.state != "cancel"
             ).sorted("id", reverse=True)[:1]
-        generate_ctx = {}
+        generate_ctx = {"envia_customs_confirmed": True}
         if self.quote_id:
             generate_ctx["envia_force_quote_id"] = self.quote_id.id
         if picking and picking.carrier_id.delivery_type == "envia":
