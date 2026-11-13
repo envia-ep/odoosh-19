@@ -6,12 +6,8 @@ import re
 from typing import Any, Iterable
 
 from odoo.exceptions import UserError
-from odoo.tools.translate import LazyTranslate
 
 from .i18n import _
-
-# Lazy labels for Selection / UI (do not str() — keeps gettext working).
-_lt = LazyTranslate("envia", default_lang="en_US")
 
 EXPORT_REASON_FALLBACK: tuple[str, ...] = (
     "sale",
@@ -25,21 +21,22 @@ EXPORT_REASON_FALLBACK: tuple[str, ...] = (
     "company transfer",
 )
 
-_EXPORT_REASON_LABELS: dict[str, Any] = {
-    "sale": _lt("Sale"),
-    "gift": _lt("Gift"),
-    "sample": _lt("Sample"),
-    "return": _lt("Return"),
-    "personal effects": _lt("Personal effects"),
-    "donation": _lt("Donation"),
-    "temporary export": _lt("Temporary export"),
-    "repair": _lt("Repair"),
-    "company transfer": _lt("Company transfer"),
+# Plain str labels only — Odoo 19 Selection rejects LazyTranslate / non-str.
+_EXPORT_REASON_LABELS: dict[str, str] = {
+    "sale": "Sale",
+    "gift": "Gift",
+    "sample": "Sample",
+    "return": "Return",
+    "personal effects": "Personal effects",
+    "donation": "Donation",
+    "temporary export": "Temporary export",
+    "repair": "Repair",
+    "company transfer": "Company transfer",
 }
 
-DUTIES_PAYMENT_SELECTION: list[tuple[str, Any]] = [
-    ("sender", _lt("Sender")),
-    ("recipient", _lt("Recipient")),
+DUTIES_PAYMENT_SELECTION: list[tuple[str, str]] = [
+    ("sender", "Sender"),
+    ("recipient", "Recipient"),
 ]
 
 
@@ -50,7 +47,7 @@ def is_international(origin_country: str | None, destination_country: str | None
     return bool(origin and destination and origin != destination)
 
 
-def export_reason_label(name: str) -> Any:
+def export_reason_label(name: str) -> str:
     text = (name or "").strip()
     if not text:
         return ""
@@ -60,7 +57,7 @@ def export_reason_label(name: str) -> Any:
     return text[:1].upper() + text[1:]
 
 
-def export_reason_selection(_model=None) -> list[tuple[str, Any]]:
+def export_reason_selection(_model=None) -> list[tuple[str, str]]:
     """Odoo Selection callable (receives model) or plain list via ``()``."""
     return [(name, export_reason_label(name)) for name in EXPORT_REASON_FALLBACK]
 
