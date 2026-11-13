@@ -338,7 +338,7 @@ class EnviaOfficialAdapter(EnviaAdapterBase):
     @staticmethod
     def _build_no_rates_message(request: QuoteRequest, carrier_errors: list[str]) -> str:
         lines = [
-            _("No shipping services available for this route."),
+            _("No shipping services available for this address."),
             _(
                 "Route: %(origin_postal)s %(origin_state)s, %(origin_country)s -> "
                 "%(destination_postal)s %(destination_state)s, %(destination_country)s"

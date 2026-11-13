@@ -117,7 +117,9 @@ class EnviaClient:
             if error_code == "INVALID_POSTAL_CODE":
                 raise UserError(_("Invalid postal code: %s") % message)
             if error_code == "NO_RATES_AVAILABLE":
-                raise UserError(_("No shipping services available for this route."))
+                raise UserError(
+                    _("No shipping services available for this address.")
+                )
             if error_code == "WEIGHT_EXCEEDS_LIMIT":
                 raise UserError(_("Weight exceeds limit: %s") % message)
             raise EnviaApiError(_("Envia API error (%(status)s): %(message)s") % {

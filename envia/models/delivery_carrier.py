@@ -352,8 +352,9 @@ class DeliveryCarrier(models.Model):
                 return {
                     "success": False,
                     "price": 0.0,
+                    # Soft copy: website badge must not look like a hard failure.
                     "error_message": _(
-                        "No Envia rates available for this order."
+                        "No shipping services available for this address."
                     ),
                     "warning_message": False,
                 }

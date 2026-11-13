@@ -40,6 +40,15 @@
     background-color: var(--o-envia-ink);
 }
 
+.o_envia_delivery_panel .o_envia_options_feedback:not(.d-none) {
+    display: block;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid var(--o-envia-line);
+    border-radius: 0.5rem;
+    background: var(--o-envia-soft);
+    color: var(--o-envia-muted);
+}
+
 .o_envia_delivery_panel .o_envia_options_list {
     max-height: 400px; // ponytail: avoid Sass min(px, vh) which breaks asset build
     overflow-y: auto;
