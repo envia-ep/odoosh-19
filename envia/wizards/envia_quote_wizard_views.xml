@@ -287,9 +287,10 @@
                     <div class="o_envia_section" invisible="not is_international_route">
                         <div class="o_envia_section_title mb-2">Customs (international)</div>
                         <group>
-                            <field name="identification_number_origin"/>
-                            <field name="destination_identification_number" readonly="1"/>
-                            <field name="export_reason"/>
+                            <field name="identification_number_origin" readonly="0"/>
+                            <field name="destination_identification_number" readonly="0"
+                                   placeholder="Destination tax ID / VAT"/>
+                            <field name="export_reason" readonly="0"/>
                         </group>
                     </div>
 

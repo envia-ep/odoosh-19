@@ -43,10 +43,15 @@
                     </div>
 
                     <group string="Customs (international)" invisible="not is_international">
-                        <field name="identification_number_origin" required="is_international"/>
+                        <field name="identification_number_origin"
+                               required="is_international"
+                               readonly="0"
+                               placeholder="Origin tax ID / RFC"/>
                         <field name="destination_identification_number"
-                               required="is_international"/>
-                        <field name="export_reason" required="is_international"/>
+                               required="is_international"
+                               readonly="0"
+                               placeholder="Destination tax ID / VAT"/>
+                        <field name="export_reason" required="is_international" readonly="0"/>
                     </group>
                 </sheet>
                 <footer>
