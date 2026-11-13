@@ -4915,3 +4915,123 @@ msgstr ""
 msgid "Shop ID"
 msgstr ""
 
+
+#. module: envia
+msgid "Customs (international)"
+msgstr ""
+
+#. module: envia
+msgid "Origin Tax ID"
+msgstr ""
+
+#. module: envia
+msgid "Destination Tax ID"
+msgstr ""
+
+#. module: envia
+msgid "Export Reason"
+msgstr ""
+
+#. module: envia
+msgid "Duties Payer"
+msgstr ""
+
+#. module: envia
+msgid "Sale"
+msgstr ""
+
+#. module: envia
+msgid "Gift"
+msgstr ""
+
+#. module: envia
+msgid "Sample"
+msgstr ""
+
+#. module: envia
+msgid "Return"
+msgstr ""
+
+#. module: envia
+msgid "Personal effects"
+msgstr ""
+
+#. module: envia
+msgid "Donation"
+msgstr ""
+
+#. module: envia
+msgid "Temporary export"
+msgstr ""
+
+#. module: envia
+msgid "Repair"
+msgstr ""
+
+#. module: envia
+msgid "Company transfer"
+msgstr ""
+
+#. module: envia
+msgid "Sender"
+msgstr ""
+
+#. module: envia
+msgid "Recipient"
+msgstr ""
+
+#. module: envia
+msgid "Origin tax ID is required for international shipments."
+msgstr ""
+
+#. module: envia
+msgid "Destination tax ID is required for international shipments."
+msgstr ""
+
+#. module: envia
+msgid "Export reason is required for international shipments."
+msgstr ""
+
+#. module: envia
+msgid "International shipments require at least one customs item."
+msgstr ""
+
+#. module: envia
+msgid "No shipping services available for this address."
+msgstr ""
+
+#. module: envia
+msgid "Cash on delivery"
+msgstr ""
+
+#. module: envia
+msgid "International shipments need an HS code (product code) on each product.\n%(detail)s\n\nAdd the HS codes in Envia Products (bulk edit), then generate the label again."
+msgstr ""
+
+#. module: envia
+msgid "Missing for: %(name)s"
+msgstr ""
+
+#. module: envia
+msgid "One or more products are missing an HS code."
+msgstr ""
+
+#. module: envia
+msgid "Product %(name)s needs an Envia HS code (product code)."
+msgstr ""
+
+#. module: envia
+msgid "Product %(name)s needs a country of manufacture."
+msgstr ""
+
+#. module: envia
+msgid "Product %(name)s needs a description."
+msgstr ""
+
+#. module: envia
+msgid "Product %(name)s quantity must be at least 1."
+msgstr ""
+
+#. module: envia
+msgid "Product %(name)s price must be greater than zero."
+msgstr ""

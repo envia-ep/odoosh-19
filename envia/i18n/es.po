@@ -5436,3 +5436,123 @@ msgstr ""
 msgid "Shop ID"
 msgstr "ID de tienda"
 
+
+#. module: envia
+msgid "Customs (international)"
+msgstr "Aduanas (internacional)"
+
+#. module: envia
+msgid "Origin Tax ID"
+msgstr "RFC / ID fiscal origen"
+
+#. module: envia
+msgid "Destination Tax ID"
+msgstr "RFC / ID fiscal destino"
+
+#. module: envia
+msgid "Export Reason"
+msgstr "Motivo de exportación"
+
+#. module: envia
+msgid "Duties Payer"
+msgstr "Quién paga los impuestos"
+
+#. module: envia
+msgid "Sale"
+msgstr "Venta"
+
+#. module: envia
+msgid "Gift"
+msgstr "Regalo"
+
+#. module: envia
+msgid "Sample"
+msgstr "Muestra"
+
+#. module: envia
+msgid "Return"
+msgstr "Devolución"
+
+#. module: envia
+msgid "Personal effects"
+msgstr "Efectos personales"
+
+#. module: envia
+msgid "Donation"
+msgstr "Donación"
+
+#. module: envia
+msgid "Temporary export"
+msgstr "Exportación temporal"
+
+#. module: envia
+msgid "Repair"
+msgstr "Reparación"
+
+#. module: envia
+msgid "Company transfer"
+msgstr "Transferencia entre empresas"
+
+#. module: envia
+msgid "Sender"
+msgstr "Remitente"
+
+#. module: envia
+msgid "Recipient"
+msgstr "Destinatario"
+
+#. module: envia
+msgid "Origin tax ID is required for international shipments."
+msgstr "El ID fiscal de origen es obligatorio para envíos internacionales."
+
+#. module: envia
+msgid "Destination tax ID is required for international shipments."
+msgstr "El ID fiscal de destino es obligatorio para envíos internacionales."
+
+#. module: envia
+msgid "Export reason is required for international shipments."
+msgstr "El motivo de exportación es obligatorio para envíos internacionales."
+
+#. module: envia
+msgid "International shipments require at least one customs item."
+msgstr "Los envíos internacionales requieren al menos un artículo de aduana."
+
+#. module: envia
+msgid "No shipping services available for this address."
+msgstr "No hay servicios de envío disponibles para esta dirección."
+
+#. module: envia
+msgid "Cash on delivery"
+msgstr "Pago contra entrega"
+
+#. module: envia
+msgid "International shipments need an HS code (product code) on each product.\n%(detail)s\n\nAdd the HS codes in Envia Products (bulk edit), then generate the label again."
+msgstr "Los envíos internacionales necesitan un código HS (código de producto) en cada producto.\n%(detail)s\n\nAgrega los códigos HS en Productos de Envia (edición masiva) y vuelve a generar la etiqueta."
+
+#. module: envia
+msgid "Missing for: %(name)s"
+msgstr "Falta para: %(name)s"
+
+#. module: envia
+msgid "One or more products are missing an HS code."
+msgstr "Uno o más productos no tienen código HS."
+
+#. module: envia
+msgid "Product %(name)s needs an Envia HS code (product code)."
+msgstr "El producto %(name)s necesita un código HS de Envia (código de producto)."
+
+#. module: envia
+msgid "Product %(name)s needs a country of manufacture."
+msgstr "El producto %(name)s necesita un país de fabricación."
+
+#. module: envia
+msgid "Product %(name)s needs a description."
+msgstr "El producto %(name)s necesita una descripción."
+
+#. module: envia
+msgid "Product %(name)s quantity must be at least 1."
+msgstr "La cantidad del producto %(name)s debe ser al menos 1."
+
+#. module: envia
+msgid "Product %(name)s price must be greater than zero."
+msgstr "El precio del producto %(name)s debe ser mayor que cero."

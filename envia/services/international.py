@@ -6,8 +6,12 @@ import re
 from typing import Any, Iterable
 
 from odoo.exceptions import UserError
+from odoo.tools.translate import LazyTranslate
 
 from .i18n import _
+
+# Lazy labels for Selection / UI (do not str() — keeps gettext working).
+_lt = LazyTranslate("envia", default_lang="en_US")
 
 EXPORT_REASON_FALLBACK: tuple[str, ...] = (
     "sale",
@@ -21,9 +25,21 @@ EXPORT_REASON_FALLBACK: tuple[str, ...] = (
     "company transfer",
 )
 
-DUTIES_PAYMENT_SELECTION: list[tuple[str, str]] = [
-    ("sender", "Sender"),
-    ("recipient", "Recipient"),
+_EXPORT_REASON_LABELS: dict[str, Any] = {
+    "sale": _lt("Sale"),
+    "gift": _lt("Gift"),
+    "sample": _lt("Sample"),
+    "return": _lt("Return"),
+    "personal effects": _lt("Personal effects"),
+    "donation": _lt("Donation"),
+    "temporary export": _lt("Temporary export"),
+    "repair": _lt("Repair"),
+    "company transfer": _lt("Company transfer"),
+}
+
+DUTIES_PAYMENT_SELECTION: list[tuple[str, Any]] = [
+    ("sender", _lt("Sender")),
+    ("recipient", _lt("Recipient")),
 ]
 
 
@@ -34,14 +50,17 @@ def is_international(origin_country: str | None, destination_country: str | None
     return bool(origin and destination and origin != destination)
 
 
-def export_reason_label(name: str) -> str:
+def export_reason_label(name: str) -> Any:
     text = (name or "").strip()
     if not text:
         return ""
+    known = _EXPORT_REASON_LABELS.get(text.casefold())
+    if known is not None:
+        return known
     return text[:1].upper() + text[1:]
 
 
-def export_reason_selection(_model=None) -> list[tuple[str, str]]:
+def export_reason_selection(_model=None) -> list[tuple[str, Any]]:
     """Odoo Selection callable (receives model) or plain list via ``()``."""
     return [(name, export_reason_label(name)) for name in EXPORT_REASON_FALLBACK]
 
@@ -73,12 +92,15 @@ def parse_export_reasons_body(body: Any) -> list[dict[str, str]]:
             continue
         if not name:
             continue
-        reasons.append({"name": name, "label": export_reason_label(name)})
+        reasons.append({"name": name, "label": str(export_reason_label(name))})
     return reasons
 
 
 def fallback_export_reasons() -> list[dict[str, str]]:
-    return [{"name": name, "label": export_reason_label(name)} for name in EXPORT_REASON_FALLBACK]
+    return [
+        {"name": name, "label": str(export_reason_label(name))}
+        for name in EXPORT_REASON_FALLBACK
+    ]
 
 
 def omit_empty(mapping: dict[str, Any]) -> dict[str, Any]:
