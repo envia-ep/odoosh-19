@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_tree_envia" model="ir.ui.view">
+        <field name="name">sale.order.list.envia</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="before">
+                <field name="envia_status" widget="badge"
+                       decoration-info="envia_status == 'quoted'"
+                       decoration-success="envia_status == 'shipped'"
+                       decoration-muted="envia_status == 'none'"
+                       optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_order_form_envia" model="ir.ui.view">
+        <field name="name">sale.order.form.envia</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="before">
+                <field name="envia_status" invisible="1"/>
+                <field name="envia_service_id" invisible="1"/>
+                <field name="envia_external_order_id" invisible="1"/>
+                <field name="envia_module" invisible="1"/>
+                <field name="envia_show_quote_archive" invisible="1"/>
+                <field name="envia_can_reship" invisible="1"/>
+                <div class="alert alert-success mb-0 rounded-0" role="alert"
+                     invisible="envia_status != 'shipped'">
+                    <field name="envia_summary" nolabel="1" readonly="1"/>
+                </div>
+                <div class="alert alert-info mb-0 rounded-0" role="alert"
+                     invisible="envia_status != 'quoted'">
+                    <field name="envia_summary" nolabel="1" readonly="1"/>
+                </div>
+            </xpath>
+            <xpath expr="//header/field[@name='state']" position="before">
+                <button name="action_envia_reship" type="object" string="Reship"
+                        class="btn-primary" display="always"
+                        invisible="not envia_can_reship"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button type="object" name="action_view_envia_quotes" class="oe_stat_button"
+                        icon="fa-calculator"
+                        invisible="envia_quote_count == 0 or not envia_show_quote_archive">
+                    <field name="envia_quote_count" widget="statinfo" string="Envia Quotes"/>
+                </button>
+                <button type="object" name="action_view_envia_shipments" class="oe_stat_button"
+                        icon="fa-truck" invisible="envia_shipment_count == 0">
+                    <field name="envia_shipment_count" widget="statinfo" string="Envia Shipments"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>

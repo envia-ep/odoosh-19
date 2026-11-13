@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="envia_delivery_method" inherit_id="website_sale.delivery_method">
+        <xpath expr="//div[hasclass('d-flex') and hasclass('justify-content-between')]" position="after">
+            <t t-set="envia_company" t-value="website.company_id"/>
+            <div
+                t-if="dm.delivery_type == 'envia'"
+                t-attf-class="o_envia_delivery_panel mt-3 {{'' if is_selected else 'd-none'}}"
+                t-att-data-dm-id="dm.id"
+                t-att-data-pickup-enabled="'1' if envia_company.envia_checkout_enable_pickup else '0'"
+                t-att-data-show-map="'1' if envia_company.envia_checkout_show_map or envia_company.envia_checkout_pickup_map_only else '0'"
+                t-att-data-pickup-map-only="'1' if envia_company.envia_checkout_pickup_map_only else '0'"
+            >
+                <div
+                    t-if="envia_company.envia_checkout_enable_pickup"
+                    class="o_envia_route_toggle w-100 mb-3"
+                    role="group"
+                    aria-label="Delivery route"
+                >
+                    <button type="button" class="o_envia_route_btn active" data-route-type="ship">
+                        <i class="fa fa-truck me-1" aria-hidden="true"/>
+                        <t t-if="envia_company.envia_checkout_ship_label" t-esc="envia_company.envia_checkout_ship_label"/>
+                        <t t-else="">Ship</t>
+                    </button>
+                    <button type="button" class="o_envia_route_btn" data-route-type="pickup">
+                        <i class="fa fa-map-marker me-1" aria-hidden="true"/>
+                        <t t-if="envia_company.envia_checkout_pickup_label" t-esc="envia_company.envia_checkout_pickup_label"/>
+                        <t t-else="">Pickup</t>
+                    </button>
+                </div>
+                <div class="o_envia_options_feedback text-muted small mb-2 d-none"/>
+                <ul class="list-group o_envia_options_list mb-3"/>
+                <div class="o_envia_map d-none border rounded" style="min-height: 280px; height: 280px;"/>
+            </div>
+        </xpath>
+    </template>
+</odoo>
