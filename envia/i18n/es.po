@@ -5556,3 +5556,11 @@ msgstr "La cantidad del producto %(name)s debe ser al menos 1."
 #. module: envia
 msgid "Product %(name)s price must be greater than zero."
 msgstr "El precio del producto %(name)s debe ser mayor que cero."
+
+#. module: envia
+msgid "International shipments need origin and destination tax IDs.\nOpen Generate Envia Label again to fill the customs form, or set the fiscal ID (VAT) on the delivery address."
+msgstr "Los envíos internacionales necesitan ID fiscal de origen y destino.\nVuelve a abrir Generar etiqueta Envia para completar el formulario de aduanas, o captura el RFC/VAT en la dirección de entrega."
+
+#. module: envia
+msgid "International shipments need origin and destination tax IDs.\nFill the customs form (Generate Envia Label) or set the fiscal ID (VAT) on the delivery address, then try again."
+msgstr "Los envíos internacionales necesitan ID fiscal de origen y destino.\nCompleta el formulario de aduanas (Generar etiqueta Envia) o captura el RFC/VAT en la dirección de entrega e inténtalo de nuevo."

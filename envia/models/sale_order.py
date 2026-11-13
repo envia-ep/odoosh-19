@@ -249,18 +249,29 @@ class SaleOrder(models.Model):
         return self.env.ref("envia.product_envia_shipping")
 
     def _envia_route_countries(self, quote=None):
-        """Return (origin_iso2, destination_iso2) for international detection."""
+        """Return (origin_iso2, destination_iso2) for international detection.
+
+        Prefer quote countries, but fall back to warehouse/company → delivery
+        partner so a quote with blank country codes still opens the customs
+        modal instead of hitting Envia ``label/create`` bare.
+        """
         self.ensure_one()
         quote = quote or self._get_active_envia_quote()
-        if quote:
-            return (quote.origin_country or "", quote.destination_country or "")
         warehouse = self.warehouse_id
-        origin = (
+        origin_fallback = (
             warehouse.partner_id.country_id.code
-            if warehouse and warehouse.partner_id.country_id
+            if warehouse and warehouse.partner_id and warehouse.partner_id.country_id
             else self.company_id.partner_id.country_id.code
         ) or ""
-        destination = (self.partner_shipping_id.country_id.code or "") if self.partner_shipping_id else ""
+        destination_fallback = (
+            (self.partner_shipping_id.country_id.code or "")
+            if self.partner_shipping_id and self.partner_shipping_id.country_id
+            else ""
+        )
+        if not quote:
+            return (origin_fallback, destination_fallback)
+        origin = (quote.origin_country or "").strip() or origin_fallback
+        destination = (quote.destination_country or "").strip() or destination_fallback
         return (origin, destination)
 
     def _envia_is_international(self, quote=None):
@@ -283,8 +294,13 @@ class SaleOrder(models.Model):
         return (partner.vat or "").strip() if partner else ""
 
     def _envia_resolve_destination_tax_id(self, quote=None):
-        """Always the delivery address fiscal ID (partner.vat), never a custom field."""
+        """Destination fiscal ID: quote value first, else delivery partner VAT."""
         self.ensure_one()
+        quote = quote or self._get_active_envia_quote()
+        if quote and (quote.destination_identification_number or "").strip():
+            return quote.destination_identification_number.strip()
+        if (self.envia_destination_identification_number or "").strip():
+            return self.envia_destination_identification_number.strip()
         partner = self.partner_shipping_id or self.partner_id
         return (partner.vat or "").strip() if partner else ""
 
@@ -332,14 +348,23 @@ class SaleOrder(models.Model):
         raise UserError(message)
 
     def _envia_validate_international_label(self, quote=None):
-        """Hard-gate international label/create (checkout remains non-blocking).
-
-        ponytail: no local HS gate — always hit Envia ``label/create`` so the
-        UI shows Envia's raw error (Odoo ``envia_product_code`` can lag Envia
-        catalog). Remap productCode failures to RedirectWarning + raw text.
-        """
+        """Hard-gate tax IDs before Envia ``label/create`` (HS stays Envia-side)."""
         self.ensure_one()
-        return
+        quote = quote or self._get_active_envia_quote()
+        if not self._envia_is_international(quote):
+            return
+        origin_tax = self._envia_resolve_origin_tax_id(quote)
+        destination_tax = self._envia_resolve_destination_tax_id(quote)
+        if origin_tax and destination_tax:
+            return
+        # Prefer the customs modal over Envia's raw identification_number error.
+        raise UserError(
+            _(
+                "International shipments need origin and destination tax IDs.\n"
+                "Open Generate Envia Label again to fill the customs form, "
+                "or set the fiscal ID (VAT) on the delivery address."
+            )
+        )
 
     def _envia_label_create_origin_contact(self, quote=None):
         self.ensure_one()

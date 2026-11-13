@@ -209,9 +209,9 @@ class StockPicking(models.Model):
             return self.action_open_envia_quote_wizard()
         # International: collect tax IDs / export reason at generate time.
         sale = self.sale_id
+        international = bool(sale and sale._envia_is_international(quote))
         if (
-            sale
-            and sale._envia_is_international(quote)
+            international
             and not self.env.context.get("envia_customs_confirmed")
         ):
             return {
@@ -223,7 +223,7 @@ class StockPicking(models.Model):
                 "target": "new",
                 "context": {
                     "default_quote_id": quote.id,
-                    "default_sale_order_id": sale.id,
+                    "default_sale_order_id": sale.id if sale else False,
                     "default_picking_id": self.id,
                     "dialog_size": "medium",
                 },

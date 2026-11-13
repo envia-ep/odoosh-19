@@ -44,7 +44,8 @@
 
                     <group string="Customs (international)" invisible="not is_international">
                         <field name="identification_number_origin" required="is_international"/>
-                        <field name="destination_identification_number" readonly="1"/>
+                        <field name="destination_identification_number"
+                               required="is_international"/>
                         <field name="export_reason" required="is_international"/>
                     </group>
                 </sheet>

@@ -126,8 +126,19 @@ class DeliveryCarrier(models.Model):
                     customs_extras=customs_extras,
                 )
             except UserError as error:
-                message = str(error.args[0] if error.args else error).lower()
-                if "already fulfilled" not in message:
+                message = str(error.args[0] if error.args else error)
+                folded = message.lower()
+                if "identification_number" in folded and "international" in folded:
+                    raise UserError(
+                        _(
+                            "International shipments need origin and destination "
+                            "tax IDs.\n"
+                            "Fill the customs form (Generate Envia Label) or set "
+                            "the fiscal ID (VAT) on the delivery address, then try "
+                            "again."
+                        )
+                    ) from error
+                if "already fulfilled" not in folded:
                     raise
                 # Last fulfillment still linked — unlink again and retry once.
                 _logger.info(

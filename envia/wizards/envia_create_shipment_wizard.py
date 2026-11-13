@@ -50,10 +50,17 @@ class EnviaCreateShipmentWizard(models.TransientModel):
     def _compute_is_international(self):
         for wizard in self:
             quote = wizard.quote_id
-            wizard.is_international = bool(
-                quote
-                and is_international(quote.origin_country, quote.destination_country)
-            )
+            if quote and wizard.sale_order_id:
+                wizard.is_international = wizard.sale_order_id._envia_is_international(
+                    quote
+                )
+            else:
+                wizard.is_international = bool(
+                    quote
+                    and is_international(
+                        quote.origin_country, quote.destination_country
+                    )
+                )
 
     def _compute_route_summary(self):
         for wizard in self:
@@ -129,8 +136,8 @@ class EnviaCreateShipmentWizard(models.TransientModel):
 
     def _persist_customs(self):
         self.ensure_one()
-        destination_tax = ""
-        if self.sale_order_id:
+        destination_tax = (self.destination_identification_number or "").strip()
+        if not destination_tax and self.sale_order_id:
             destination_tax = self.sale_order_id._envia_resolve_destination_tax_id(
                 self.quote_id
             )
