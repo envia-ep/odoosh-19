@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_envia_plugin_connect_wizard_form" model="ir.ui.view">
+        <field name="name">envia.plugin.connect.wizard.form</field>
+        <field name="model">envia.plugin.connect.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Connect with Envia.com"
+                  class="o_envia_plugin_connect_wizard"
+                  js_class="envia_plugin_connect_wizard_form">
+                <field name="state" invisible="1"/>
+                <field name="company_id" invisible="1"/>
+                <field name="external_popup_url" invisible="1"/>
+                <field name="integration_use_sized_popup" invisible="1"/>
+
+                <sheet>
+                    <div class="o_envia_external_waiting_screen"
+                         invisible="state != 'waiting_external'"
+                         role="status"
+                         aria-live="polite">
+                        <div class="o_envia_external_waiting_content text-center">
+                            <div class="o_envia_external_waiting_badge">
+                                <i class="fa fa-circle text-success me-1" title="Active" aria-hidden="true"/>
+                                Step 2 of 3 · In progress
+                            </div>
+
+                            <div class="o_envia_external_waiting_loader" aria-hidden="true">
+                                <span class="o_envia_external_waiting_loader_ring"/>
+                                <span class="o_envia_external_waiting_loader_ring o_envia_external_waiting_loader_ring_delay"/>
+                                <span class="o_envia_external_waiting_loader_icon">
+                                    <i class="fa fa-external-link" title="Envia.com"/>
+                                </span>
+                            </div>
+
+                            <h1 class="o_envia_external_waiting_title mb-2">
+                                Waiting for Envia.com
+                            </h1>
+                            <p class="o_envia_external_waiting_lead text-muted mb-4">
+                                Envia.com was opened in a new browser tab. Sign in, authorize your store, and close the tab when you are done.
+                            </p>
+
+                            <div class="o_envia_external_waiting_steps text-start mb-4">
+                                <div class="o_envia_welcome_step o_envia_external_waiting_step_done">
+                                    <span class="o_envia_welcome_step_number">
+                                        <i class="fa fa-check" title="Done"/>
+                                    </span>
+                                    <div>
+                                        <div class="fw-bold">Odoo is ready</div>
+                                        <div class="text-muted small">
+                                            Your store connection request was sent to Envia.com.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="o_envia_welcome_step o_envia_external_waiting_step_active">
+                                    <span class="o_envia_welcome_step_number">2</span>
+                                    <div>
+                                        <div class="fw-bold">Complete the Envia.com flow</div>
+                                        <div class="text-muted small">
+                                            Use the Envia.com browser tab to sign in and authorize access.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="o_envia_welcome_step o_envia_external_waiting_step_pending">
+                                    <span class="o_envia_welcome_step_number">3</span>
+                                    <div>
+                                        <div class="fw-bold">Return to Odoo</div>
+                                        <div class="text-muted small">
+                                            Close the Envia.com tab when the authorization is complete.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="o_envia_external_waiting_hint d-flex align-items-start text-start mb-4">
+                                <i class="fa fa-info-circle text-primary me-2" title="Tip" aria-hidden="true"/>
+                                <div>
+                                    If Envia.com did not open, click Open Envia.com below. This screen updates automatically when Envia saves your API token.
+                                </div>
+                            </div>
+
+                            <p class="o_envia_external_waiting_status text-muted mb-4">
+                                Waiting for Envia.com to save your connection
+                                <span class="o_envia_external_waiting_dots" aria-hidden="true">
+                                    <span>.</span><span>.</span><span>.</span>
+                                </span>
+                            </p>
+
+                            <button name="action_open_envia_integration" type="object"
+                                    string="Open Envia.com"
+                                    class="btn btn-primary mb-3"
+                                    icon="fa-external-link"/>
+
+                            <button name="action_cancel_external_popup_wait" type="object"
+                                    string="Cancel connection"
+                                    class="btn btn-outline-secondary"
+                                    icon="fa-times"/>
+                        </div>
+                    </div>
+
+                    <div class="o_envia_welcome_screen"
+                         invisible="state != 'ready'">
+                        <div class="o_envia_welcome_content text-center">
+                            <div class="o_envia_welcome_icon mb-3">
+                                <img src="/envia/static/description/icon.png"
+                                     alt="Envia.com"
+                                     class="o_envia_welcome_logo"/>
+                            </div>
+                            <h1 class="mb-2">Welcome to Envia Shipping</h1>
+                            <p class="text-muted mb-4 o_envia_welcome_lead">
+                                Connect your Odoo store with Envia.com to quote carriers from sale orders without leaving Odoo.
+                            </p>
+
+                            <div class="o_envia_welcome_steps text-start mb-4">
+                                <div class="o_envia_welcome_step">
+                                    <span class="o_envia_welcome_step_number">1</span>
+                                    <div>
+                                        <div class="fw-bold">Connect your store</div>
+                                        <div class="text-muted small">
+                                            Authorize Envia.com to access your Odoo instance.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="o_envia_welcome_step">
+                                    <span class="o_envia_welcome_step_number">2</span>
+                                    <div>
+                                        <div class="fw-bold">Complete the Envia.com flow</div>
+                                        <div class="text-muted small">
+                                            Sign in or register in the Envia.com tab that opens in your browser.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="o_envia_welcome_step">
+                                    <span class="o_envia_welcome_step_number">3</span>
+                                    <div>
+                                        <div class="fw-bold">Configure automatic quoting in Envia</div>
+                                        <div class="text-muted small">In your Envia store settings, enable Automatic Quoting at checkout to control the shipping price customers see when they place an order.</div>
+                                    </div>
+                                </div>
+                                <div class="o_envia_welcome_step">
+                                    <span class="o_envia_welcome_step_number">4</span>
+                                    <div>
+                                        <div class="fw-bold">Sync products in Envia</div>
+                                        <div class="text-muted small">Synchronize your catalog in Envia so quotes use the correct product weights and dimensions.</div>
+                                    </div>
+                                </div>
+                                <div class="o_envia_welcome_step">
+                                    <span class="o_envia_welcome_step_number">5</span>
+                                    <div>
+                                        <div class="fw-bold">Sync shipping origins in Odoo</div>
+                                        <div class="text-muted small">Set up your warehouse and origin addresses in Odoo so Envia can quote from the right locations.</div>
+                                    </div>
+                                </div>
+                                <div class="o_envia_welcome_step">
+                                    <span class="o_envia_welcome_step_number">6</span>
+                                    <div>
+                                        <div class="fw-bold">Start quoting</div>
+                                        <div class="text-muted small">You are ready to get carrier rates from sale orders in Odoo.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="o_envia_welcome_store_preview text-start mb-4">
+                                <div class="o_envia_welcome_store_label">Store URL</div>
+                                <field name="store_url" nolabel="1" readonly="1" class="o_envia_welcome_store_value"/>
+                                <div class="text-muted small mt-2">
+                                    Envia.com must reach this public URL to validate your store.
+                                </div>
+                            </div>
+
+                            <div class="o_envia_welcome_actions">
+                                <button name="action_run_integration" type="object"
+                                        string="Connect with Envia.com"
+                                        class="btn btn-primary btn-lg"
+                                        icon="fa-plug"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info py-4 mb-0 o_envia_oauth_connect_loading"
+                         invisible="state != 'integrating'"
+                         role="status">
+                        <div class="d-flex align-items-center justify-content-center gap-3">
+                            <i class="fa fa-spinner fa-spin fa-2x text-primary" title="Connecting"/>
+                            <div>
+                                <div class="fw-bold">Connecting...</div>
+                                <div class="text-muted">
+                                    Please wait while we connect your store with Envia.com.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-success py-4 mb-0"
+                         invisible="state != 'success'"
+                         role="status">
+                        <div class="d-flex align-items-start justify-content-center gap-3">
+                            <i class="fa fa-check-circle fa-2x mt-1" title="Success"/>
+                            <div class="text-start" style="max-width: 32rem;">
+                                <div class="fw-bold">Connected</div>
+                                <div class="text-muted">
+                                    <field name="integration_message" nolabel="1" readonly="1"/>
+                                </div>
+                                <div class="mt-2">
+                                    <div class="text-muted">Plugin version:</div>
+                                    <field name="plugin_version_display" nolabel="1" readonly="1" class="fw-bold"/>
+                                </div>
+                                <div class="mt-3">
+                                    <div class="text-muted mb-1">Integration API Token</div>
+                                    <field name="api_key" widget="envia_api_key" nolabel="1" readonly="1"/>
+                                    <div class="text-muted small mt-1" invisible="api_key">
+                                        No API token stored. Click Refresh token to generate and save one.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3 d-flex flex-wrap justify-content-center gap-2">
+                            <button name="action_go_to_plugin_settings" type="object"
+                                    string="Open Settings"
+                                    class="btn btn-primary btn-lg"
+                                    icon="fa-cog"
+                                    groups="base.group_system"/>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-danger py-4 mb-0"
+                         invisible="state != 'error'"
+                         role="alert">
+                        <div class="d-flex align-items-center justify-content-center gap-3">
+                            <i class="fa fa-exclamation-triangle fa-2x" title="Error"/>
+                            <div>
+                                <div class="fw-bold">Connection failed</div>
+                                <div>
+                                    <field name="integration_message" nolabel="1" readonly="1"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <button name="action_retry_integration" type="object"
+                                    string="Try again"
+                                    class="btn btn-primary btn-lg"
+                                    icon="fa-refresh"/>
+                        </div>
+                    </div>
+                </sheet>
+
+                <footer>
+                    <button name="action_run_integration" type="object"
+                            string="Connect with Envia.com"
+                            class="btn-primary"
+                            invisible="state != 'ready'"
+                            icon="fa-plug"/>
+                    <button name="action_go_to_plugin_settings" type="object"
+                            string="Open Settings"
+                            class="btn-primary"
+                            invisible="state != 'success'"
+                            icon="fa-cog"
+                            groups="base.group_system"/>
+                    <button name="action_refresh_token" type="object"
+                            string="Refresh token"
+                            class="btn-secondary"
+                            invisible="state != 'success'"
+                            icon="fa-refresh"/>
+                    <button name="action_retry_integration" type="object"
+                            string="Try again"
+                            class="btn-primary"
+                            invisible="state != 'error'"
+                            icon="fa-refresh"/>
+                    <button string="Close" special="cancel" class="btn-secondary"
+                            invisible="state in ('integrating', 'waiting_external')"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
