@@ -1,10 +1,16 @@
 import base64
 from urllib.parse import urlencode
 
-ENVIA_LOCATION_TYPE_SELECTION = [
-    ("address", "Domicile"),
-    ("branch", "Branch"),
-]
+def envia_location_type_selection(_model=None):
+    """Fresh list per field — Odoo 19 mutates shared Selection lists in place."""
+    return [
+        ("address", "Domicile"),
+        ("branch", "Branch"),
+    ]
+
+
+# Backward-compat alias (do not pass this list to fields.Selection).
+ENVIA_LOCATION_TYPE_SELECTION = envia_location_type_selection()
 
 ENVIA_ECOMMERCE_EMBED_URL_PRODUCTION = "https://shipping.envia.com/ecommerce"
 ENVIA_ECOMMERCE_EMBED_URL_SANDBOX = "https://shipping-test.envia.com/ecommerce"

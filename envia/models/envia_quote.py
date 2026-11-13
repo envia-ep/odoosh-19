@@ -3,8 +3,8 @@ from datetime import datetime
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
-from ..const import ENVIA_LOCATION_TYPE_SELECTION
-from ..services.international import DUTIES_PAYMENT_SELECTION, export_reason_selection
+from ..const import envia_location_type_selection
+from ..services.international import duties_payment_selection, export_reason_selection
 from ..services.payload_mapper import PayloadMapper
 
 
@@ -25,7 +25,7 @@ class EnviaQuote(models.Model):
     origin_state = fields.Char()
     origin_city = fields.Char()
     origin_location_type = fields.Selection(
-        ENVIA_LOCATION_TYPE_SELECTION,
+        selection=envia_location_type_selection,
         default="address",
     )
     origin_branch_code = fields.Char()
@@ -37,7 +37,7 @@ class EnviaQuote(models.Model):
     destination_state = fields.Char()
     destination_city = fields.Char()
     destination_location_type = fields.Selection(
-        ENVIA_LOCATION_TYPE_SELECTION,
+        selection=envia_location_type_selection,
         default="address",
     )
     destination_branch_code = fields.Char()
@@ -76,7 +76,7 @@ class EnviaQuote(models.Model):
         default="sale",
     )
     duties_payment_entity = fields.Selection(
-        selection=DUTIES_PAYMENT_SELECTION,
+        selection=duties_payment_selection,
         string="Duties Payer",
         default="sender",
     )

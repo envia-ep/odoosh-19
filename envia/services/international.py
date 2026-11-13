@@ -34,10 +34,16 @@ _EXPORT_REASON_LABELS: dict[str, str] = {
     "company transfer": "Company transfer",
 }
 
-DUTIES_PAYMENT_SELECTION: list[tuple[str, str]] = [
-    ("sender", "Sender"),
-    ("recipient", "Recipient"),
-]
+def duties_payment_selection(_model=None) -> list[tuple[str, str]]:
+    """Fresh list per field — Odoo 19 mutates shared Selection lists in place."""
+    return [
+        ("sender", "Sender"),
+        ("recipient", "Recipient"),
+    ]
+
+
+# Backward-compat alias (do not pass this list to fields.Selection).
+DUTIES_PAYMENT_SELECTION = duties_payment_selection()
 
 
 def is_international(origin_country: str | None, destination_country: str | None) -> bool:

@@ -4,13 +4,13 @@ from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 from odoo.tools import format_amount
 
-from ..const import ENVIA_LOCATION_TYPE_SELECTION
+from ..const import envia_location_type_selection
 from ..services.dto import Contact
 from ..services.envia_client import EnviaClient
 from ..services.envia_geocodes_client import EnviaGeocodesClient
 from ..services.envia_official_adapter import EnviaOfficialAdapter
 from ..services.international import (
-    DUTIES_PAYMENT_SELECTION,
+    duties_payment_selection,
     export_reason_selection,
     is_international,
     normalize_export_reason,
@@ -311,13 +311,13 @@ class EnviaQuoteWizard(models.TransientModel):
         compute="_compute_allowed_address_partners",
     )
     origin_location_type = fields.Selection(
-        ENVIA_LOCATION_TYPE_SELECTION,
+        selection=envia_location_type_selection,
         string="Origin Type",
         default="address",
         required=True,
     )
     destination_location_type = fields.Selection(
-        ENVIA_LOCATION_TYPE_SELECTION,
+        selection=envia_location_type_selection,
         string="Destination Type",
         default="address",
         required=True,
@@ -441,7 +441,7 @@ class EnviaQuoteWizard(models.TransientModel):
         default="sale",
     )
     duties_payment_entity = fields.Selection(
-        selection=DUTIES_PAYMENT_SELECTION,
+        selection=duties_payment_selection,
         string="Duties Payer",
         default="sender",
     )

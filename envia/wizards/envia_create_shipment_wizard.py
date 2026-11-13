@@ -2,7 +2,7 @@ from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
 from ..services.international import (
-    DUTIES_PAYMENT_SELECTION,
+    duties_payment_selection,
     export_reason_selection,
     is_international,
     normalize_export_reason,
@@ -37,7 +37,7 @@ class EnviaCreateShipmentWizard(models.TransientModel):
         default="sale",
     )
     duties_payment_entity = fields.Selection(
-        selection=DUTIES_PAYMENT_SELECTION,
+        selection=duties_payment_selection,
         string="Duties Payer",
         default="sender",
     )
